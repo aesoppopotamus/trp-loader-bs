@@ -19,7 +19,10 @@ const rumors = [
     "Pay attention if you’re out in cities; seen some hobo code spray painted on walls that’s pretty recent. Get Kelly to give you a quick lesson on it, those symbols could save you from a ‘bot if you’ve got a good eye. - K. Davis",
     "There is a man named Shoes who never sleeps. He walks and talks like a robot. I've seen him drinking motor oil and some tell me he breathes diesel exhaust. Last night I swear I could see his eyes glowing like cosmic pearls beneath the old moon. His name is Shoes and he never sleeps. - Stranger",
     "DON'T GO ANYWHERE NEAR COVILLE NATIONAL PARK!",
-    "What is it that makes us human? It’s not something you can program. You can’t put it into a chip. It’s the strength of the human heart. The difference between us and machines."
+    "What is it that makes us human? It’s not something you can program. You can’t put it into a chip. It’s the strength of the human heart. The difference between us and machines.",
+    "Got word those Narco's south of the border have been giving the machines hell. Sending patrols of 'soldiers' everyday for the last four months now. If you ask me? They're using the same tunnels they dug before the world set alight- smuggling drugs and arms to whatever cells they can down here.",
+    "Saw this scrawny, wilding.. 'Thing' of a kid the other day while I was headed East for a bit, trying to convene with some Traders. Had himself a beard on him, for true, and looked as dirty as ever - but I could tell he was young, saw it in his eyes, way he looked at me. Looked to be one of those Wildmen you hear about, all living out in the ruins and woods and shit. Anyways, the little fucker took me for all I was worth, and left me with the clothes on my back. Be careful if you take Route 90 East!",
+    "You're gonna have to go on without me kid; we both know how dangerous this journey would be. Just keep headin' north best you can, you should make to Wasco before nightfall. Theirs an old emergency centre underneath the high-school that I've stashed my old military supplies in. You ain't mine by blood but God damn it you’re my boy! Now go! Get outta here boy, i'll keep 'em distracted."
  ];
 
 
