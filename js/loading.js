@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', function () {
   document.addEventListener('DOMContentLoaded', function () {
     const consoleText = document.getElementById('console-text');
     const typingSpeed = 10; // Adjust typing speed here
-    const pauseAfterTyping = 10000; // Adjust pause before wiping and typing next message
+    const pauseAfterTyping = 12000; // Adjust pause before wiping and typing next message
     let shuffledRumors = shuffleArray([...rumors]); // Shuffling rumors
     let arrayIndex = 0;
     let charIndex = 0;
