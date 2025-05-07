@@ -23,8 +23,11 @@ const rumors = [
     "What is it that makes us human? It’s not something you can program. You can’t put it into a chip. It’s the strength of the human heart. The difference between us and machines.",
     "Got word those Narco's south of the border have been giving the machines hell. Sending patrols of 'soldiers' everyday for the last four months now. If you ask me? They're using the same tunnels they dug before the world set alight- smuggling drugs and arms to whatever cells they can down here.",
     "Be careful if you take Route 90 East!",
-    "You're gonna have to go on without me kid; we both know how dangerous this journey would be. Just keep headin' north best you can, you should make to Wasco before nightfall. Theirs an old emergency centre underneath the high-school that I've stashed my old military supplies in. You ain't mine by blood but God damn it you’re my boy! Now go! Get outta here boy, i'll keep 'em distracted."
- ];
+    "--- .--.- ... .--- .--.-- → Sector 7 compromised. Move east. ---",
+    "This is Rogue Squad 17: T-800 sighted at I-5 interchange. Avoid all Skynet patrols.",
+    "— static — Medivac run incoming. Rendezvous at Camp Echo in 5 hours. — static —",
+    "‘If you’re hearing this, you’re the next target. Stay off the grid.’ — Echo Nine"
+   ];
 
 
 const registers = [
@@ -253,6 +256,23 @@ const predefinedBlocks = [
         "Terrain: Urban...",
         "Weather: Dry...",
         "Mission area status: Safe."
+      ]
+    },
+    {
+      label: "EXCEPTION_INTERRUPT",
+      code: [
+      "[0000FF] Memory leak detected… dumping stack trace…",
+      "!! SYSTEM CORRUPTION IMMINENT !!",
+      "|010101010110| C†H†E†C†K M†O†D†U†L†E…",
+      "[ERROR] Cannot read property ‘humanity’ of undefined"
+      ]
+    },
+    {
+      label: "FAULT_INTERRUPT",
+      code: [
+      "!!! HARDWARE FAULT !!!",
+      "!! Skynet core fragment missing !!",
+      "!! Bootloader integrity compromised !!"
       ]
     }
   ];      

@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', function () {
   /* Cursortyper */
   document.addEventListener('DOMContentLoaded', function () {
     const consoleText = document.getElementById('console-text');
-    const typingSpeed = 10; // Adjust typing speed here
+    const typingSpeed = 0; // Adjust typing speed here
     const pauseAfterTyping = 12000; // Adjust pause before wiping and typing next message
     let shuffledRumors = shuffleArray([...rumors]); // Shuffling rumors
     let arrayIndex = 0;
