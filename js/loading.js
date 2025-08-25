@@ -29,9 +29,66 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 
+// === Fast DOM helpers ========================================================
+
+// Reusable "ring buffer" appender: keeps at most `max` rows in the DOM.
+// It RECYCLES nodes instead of creating/destroying endlessly.
+function makeRingAppender(container, max = 200) {
+  const pool = [];
+  return function appendLine(lineNo, ...parts) {
+    // optional last arg: options object, e.g. { className: 'indented' }
+    let opts = {};
+    if (
+      parts.length &&
+      typeof parts[parts.length - 1] === 'object' &&
+      parts[parts.length - 1] !== null &&
+      !Array.isArray(parts[parts.length - 1])
+    ) {
+      opts = parts.pop();
+    }
+
+    // acquire or create a row
+    let node;
+    if (pool.length < max) {
+      node = document.createElement('div');
+      node.className = 'assembly-line';
+      // first <span> = line number
+      node.appendChild(document.createElement('span'));
+      container.appendChild(node);
+      pool.push(node);
+    }
+
+    // rotate oldest to end and reuse it
+    node = pool.shift();
+
+    // reset base class + optional class
+    node.className = 'assembly-line' + (opts.className ? ' ' + opts.className : '');
+
+    // ensure we have enough spans for number + text parts
+    while (node.children.length < parts.length + 1) {
+      node.appendChild(document.createElement('span'));
+    }
+
+    // write number + texts
+    node.children[0].textContent = String(lineNo);
+    for (let i = 0; i < parts.length; i++) {
+      node.children[i + 1].textContent = parts[i];
+    }
+
+    // clear any EXTRA spans left over from a previous longer line
+    for (let j = parts.length + 1; j < node.children.length; j++) {
+      node.children[j].textContent = '';
+    }
+
+    // move to end (visual scroll) and re-queue
+    container.appendChild(node);
+    pool.push(node);
+  };
+}
+
 /*--- T2 style scrolling text --*/
 document.addEventListener('DOMContentLoaded', function () {
-  const maxLines = 20;  // Maximum lines to display before resetting
+  const maxLines = 100;  // Maximum lines to display before resetting
   const leftAsmDelay = 500;
   const rightAsmDelay = 700;
   let leftLineNumber = 1;
@@ -48,108 +105,45 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // Function to insert predefined blocks of code
-  function insertPredefinedBlock(feedId, block, lineNumber) {
-    const feed = document.getElementById(feedId);
+// --- Left feed (fast, bounded DOM) ------------------------------------------
+const leftFeedEl = document.getElementById('assembly-feed-left');
+const appendLeft = makeRingAppender(leftFeedEl, maxLines); // cap at maxLines
 
-    feed.innerHTML += `
-      <div class="assembly-line"><span>${lineNumber}</span> <span>${block.label}</span></div>
-      <div class="assembly-line"><span>${lineNumber + 1}</span> <span>--------------------</span></div>
-      ${block.code.map((line, idx) => `<div class="assembly-line indented"><span>${lineNumber + 2 + idx}</span> <span>> ${line}</span></div>`).join('')}
-      <div class="assembly-line"><span>${lineNumber + block.code.length + 2}</span> <span>--------------------</span></div>
-    `;
+function appendPredefinedBlockLeft(block) {
+  // label
+  appendLeft(leftLineNumber++, block.label);
+  // dashes
+  appendLeft(leftLineNumber++, '--------------------');
 
-    return lineNumber + block.code.length + 3;
+  // code lines (with the "indented" look)
+  for (let i = 0; i < block.code.length; i++) {
+    appendLeft(leftLineNumber++, `> ${block.code[i]}`, { className: 'indented' });
   }
 
-  // Function to add an assembly line to the left feed
-  function addLeftAssemblyLine() {
-    const feed = document.getElementById('assembly-feed-left');
-    const lineData = getRandomAssemblyLine();
+  // dashes
+  appendLeft(leftLineNumber++, '--------------------');
+}
 
-    if (Math.random() > 0.85) {
-      const block = predefinedBlocks[Math.floor(Math.random() * predefinedBlocks.length)];
-      leftLineNumber = insertPredefinedBlock('assembly-feed-left', block, leftLineNumber);
-    } else {
-      feed.innerHTML += `<div class="assembly-line"><span>${leftLineNumber}</span> <span>${lineData.address}</span> <span>${lineData.instruction}</span></div>`;
-      leftLineNumber++;
-    }
+function addLeftAssemblyLineFast() {
+  const lineData = getRandomAssemblyLine();
 
-    currentAsmLineLeft++;
-
-    if (currentAsmLineLeft > maxLines) {
-      feed.firstChild.remove();
-      currentAsmLineLeft--;
-    }
-
-    setTimeout(addLeftAssemblyLine, leftAsmDelay);
+  if (Math.random() > 0.85) {
+    const block = predefinedBlocks[Math.floor(Math.random() * predefinedBlocks.length)];
+    appendPredefinedBlockLeft(block);
+  } else {
+    // number, address, instruction (three spans total)
+    appendLeft(leftLineNumber++, lineData.address, lineData.instruction);
   }
 
-  // Function to add an assembly line to the right feed
-//  function addRightAssemblyLine() {
-//    const feed = document.getElementById('assembly-feed-right');
-//    const lineData = getRandomAssemblyLine();
-//
-//    feed.innerHTML += `<div class="assembly-line"><span>${rightLineNumber}</span> <span>${lineData.address}</span> <span>${lineData.instruction}</span></div>`;
-//    rightLineNumber++;
-//
-//    currentAsmLineRight++;
-//
-//    if (currentAsmLineRight > maxLines) {
-//      feed.firstChild.remove();
-//      currentAsmLineRight--;
-//    }
-//
-//    setTimeout(addRightAssemblyLine, rightAsmDelay);
-//  }
-
-  // Start scrolling text on both sides
-  addLeftAssemblyLine();
+  setTimeout(addLeftAssemblyLineFast, leftAsmDelay);
+}
+  addLeftAssemblyLineFast();
 });
 
   /* Cursortyper */
-  document.addEventListener('DOMContentLoaded', function () {
-    const consoleText = document.getElementById('console-text');
-    const typingSpeed = 0; // Adjust typing speed here
-    const pauseAfterTyping = 12000; // Adjust pause before wiping and typing next message
-    let shuffledRumors = shuffleArray([...rumors]); // Shuffling rumors
-    let arrayIndex = 0;
-    let charIndex = 0;
-  
-    // Fisher-Yates Shuffle function
-    function shuffleArray(array) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-      }
-      return array;
-    }
-  
-    function typeText() {
-      if (charIndex < shuffledRumors[arrayIndex].length) {
-        consoleText.textContent += shuffledRumors[arrayIndex][charIndex];
-        charIndex++;
-        setTimeout(typeText, typingSpeed); // Continue typing
-      } else {
-        setTimeout(startNextText, pauseAfterTyping); // Pause after finishing typing
-      }
-    }
-  
-    function startNextText() {
-      // Clear only the dynamic text
-      consoleText.textContent = '';
-      charIndex = 0; // Reset charIndex for new text
-      arrayIndex++; // Move to the next message
-  
-      if (arrayIndex >= shuffledRumors.length) {
-        shuffledRumors = shuffleArray([...rumors]); // Reshuffle if all are typed
-        arrayIndex = 0; // Start from the beginning
-      }
-      setTimeout(typeText, typingSpeed); // Start typing the next text
-    }
-  
-    // Start the typing effect
-    typeText();
-  });
+  document.addEventListener("DOMContentLoaded", () => {
+    runCursorTyperFromConfig();
+});
   
   document.addEventListener('DOMContentLoaded', function () {
     const loreFeed = document.getElementById('lore-feed');
@@ -170,3 +164,40 @@ document.addEventListener('DOMContentLoaded', function () {
     // Update the lore feed every 5 seconds
     setInterval(updateLoreFeed, 7000);
   });
+
+  (function () {
+  function getParams() {
+    const u = new URL(window.location.href);
+    return {
+      mute: u.searchParams.get("mute") === "1",
+      seed: u.searchParams.get("seed"),
+    };
+  }
+
+  function renderScanText() {
+    const root = document.getElementById("top-right");
+    if (!root) return;
+    const cfg = (window.UI && window.UI.scanText) || [];
+    const baseClass = (window.UI && window.UI.scanTextClass) || "scan-text";
+    root.innerHTML = "";
+    cfg.forEach(({ tag = "div", text = "", className = "" }) => {
+      const el = document.createElement(tag);
+      el.className = (className ? `${baseClass} ${className}` : baseClass).trim();
+      el.textContent = text;
+      root.appendChild(el);
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      renderScanText();
+      const p = getParams();
+      if (window.UI?.defaults) {
+        if (p.mute) window.UI.defaults.mute = true;
+        if (p.seed) window.UI.defaults.seed = Number(p.seed);
+      }
+    });
+  } else {
+    renderScanText();
+  }
+})();

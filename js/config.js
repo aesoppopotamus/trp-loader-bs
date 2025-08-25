@@ -7,8 +7,62 @@ window.motdArray = [
   "Join the community at www.thefuturewar.net!"
 ];
 
+window.UI = window.UI || {};
+window.UI.scanTextClass = "scan-text";
 
-const rumors = [
+// Top-right header text
+window.UI.scanText = [
+  { tag: "h1", text: "The Future War" },
+  { tag: "h2", text: "First Contact" },
+  { tag: "h4", text: "Terminator Serious Roleplay" },
+];
+
+window.UI = window.UI || {};
+
+// Which array to type and where to render it
+window.UI.cursorTyperTarget = {
+  selector: "#console-text", // your existing element
+  sourceKey: "motdArray", 
+};
+
+window.UI.cursorTyper = {
+  // typing cadence
+  msPerChar: 25,              // 0 = instant
+  pauseAfterTyping: 12000,   // ms between lines
+
+  // loop behavior
+  shuffle: true,             // shuffle before first run
+  reshuffleOnExhaust: true,  // reshuffle once we’ve shown all lines
+  seed: null,                // set a number for deterministic order
+  skipEmpty: true,           // ignore empty strings
+};
+
+// ===== T-800 DIAGNOSTICS PANEL CONFIG ======================================
+window.DIAG = {
+  theme: {
+    primary: "#37ddfa",     // cyan grid/accents
+    accent:  "#ff3b3b",     // eye glow
+    text:    "#cfe7ff",     // readout text
+    grid:    "rgba(255,255,255,0.12)" // grid/rings
+  },
+  scan: {
+    speedMs: 2600,   // full sweep duration
+    thickness: 14,   // px
+    alpha: 0.25      // bar opacity
+  },
+  readouts: {
+    model: "T-800 / Series 101",
+    location: "Olympia, WA",
+    cpuTemp: { min: 41, max: 55, unit: "°C" },
+    power:   { min: 74, max: 89, unit: "%" },
+    actuators: { ok: 28, total: 32 },
+    targeting: ["LOCKED", "TRACKING", "IDLE"],
+    netlink:   ["CIPHER/OK", "UPLINK: READY", "UPLINK: SECURE"]
+  }
+};
+
+
+window.rumors = [
     "Judgment Day: July 25th, 2004. Skynet becomes self-aware.",
     "Was talking to my brother over the radio the other day. He said his boys saw a battleship floating in the air. It passed by them on it's way east. The guy's gone nuts, I'm telling ya.",
     "Be careful who you call a friend. I travelled alone, with a chick, for two months trynna make it to New Ibiza... Only to wake up in the dead of night, all my shit gone.' - Keyshawn B",
@@ -275,4 +329,67 @@ const predefinedBlocks = [
       "!! Bootloader integrity compromised !!"
       ]
     }
-  ];      
+  ];
+
+  // ===== DOS / 386 Boot Screen Config =========================================
+window.DOS = {
+  // RNG: set a number (e.g., 1337) for deterministic sequences, or null for random
+  seed: null,
+
+  // Speeds & probabilities
+  linesPerSecond: 3,    // how many lines to print per second
+  bannerChance: 0.15,    // chance to print a dashed banner line
+  blockChance: 0.12,     // chance to print a labeled multi-line "block"
+  startLine: 10000,       // starting line number
+
+  // Text: boot banners that interleave with assembly
+  banners: [
+    "Phoenix-386 BIOS v4.03 (C) 1991",
+    "Memory Test: 640K OK",
+    "Initializing DMA... OK",
+    "Skynet Node 17 Firmware 1.09",
+    "Loading kernel vectors...",
+    "Enabling protected mode...",
+    "ACPI... N/A  |  A20... ENABLED",
+    "Boot device: Net (PXE)  |  Fallback: ROM",
+    "----- TRANSFER CONTROL -----"
+  ],
+
+  // Labeled multi-line blocks (the dramatic bits)
+  labeledBlocks: [
+    {
+      label: "FAULT_INTERRUPT",
+      lines: [
+        "!!! HARDWARE FAULT !!!",
+        ">> Skynet core fragment missing !!",
+        ">> Bootloader integrity compromised !!"
+      ]
+    },
+    {
+      label: "EXCEPTION_INTERRUPT",
+      lines: [
+        "Divide-by-zero trap",
+        "Revectoring INT 0x00 -> 0x0000:0F22"
+      ]
+    },
+    {
+      label: "STACK DUMP",
+      lines: [
+        "BP 0x0012A0  SP 0x00127C",
+        "RET 0xC00F:DEAD  FLAGS 0x0246"
+      ]
+    }
+  ],
+
+  // Where to read the assembly source arrays from (these must be on window.*)
+  sources: {
+    addressesKey: "addresses",      // window.addresses
+    instructionsKey: "instructions",// window.instructions
+    registersKey: "registers"       // window.registers
+  }
+};
+
+// If your arrays are still declared with const/let elsewhere, export them:
+if (typeof window.addresses === "undefined" && typeof addresses !== "undefined") window.addresses = addresses;
+if (typeof window.instructions === "undefined" && typeof instructions !== "undefined") window.instructions = instructions;
+if (typeof window.registers === "undefined" && typeof registers !== "undefined") window.registers = registers;

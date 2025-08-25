@@ -1,31 +1,70 @@
+/* ========================================================================== */
+/* Global layout + variables                                                  */
+/* ========================================================================== */
+
+:root {
+  /* Left column width; tweak 22–30vw */
+  --feed-w: 24vw;
+  --addr-w: 10ch;
+
+  /* DOS terminal paddings / gaps */
+  --dos-pad-x: 0.7vw;
+  --dos-pad-y: 0.6vh;
+  --diag-enter-ms: 900ms;
+  --diag-border-color: #ffffff;
+  --diag-bg: rgba(0,0,0,0.45);
+  --diag-border-radius: 10px;
+  --diag-shadow: 0 0 1vh rgba(255,255,255,0.35);
+}
+
 /* Body Background and General Styling */
 body {
   background: url('../img/background.jpg') no-repeat center center fixed;
   background-size: cover;
   animation: panZoomEffect 60s ease-in-out infinite alternate;
   color: #ff0000; /* Terminator red for text */
-  font-family: 'Courier New', Courier, monospace; /* Monospaced font for a more techy look */
+  font-family: 'Courier New', Courier, monospace;
   height: 100vh;
   margin: 0;
   overflow: hidden;
   opacity: 0.9;
 }
 
-/* Import the Terminator Real NFI font */
+/* Import fonts */
 @font-face {
   font-family: 'TerminatorReal';
   src: url('../fonts/TerminatorRealNFI.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
+  font-display: swap;
+}
+/* Optional DOS VGA recreation (include file if you have it) */
+@font-face {
+  font-family: "Perfect DOS VGA 437";
+  src: url('../fonts/PerfectDOSVGA437.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
 }
 
-/* Loading Wrapper */
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  body { animation: none !important; }
+  .holo-scanlines, .assembly-feed-container-left::before, #dos-screen.crt::before {
+    animation: none !important;
+  }
+}
+
+/* ========================================================================== */
+/* Wrapper + HUD                                                              */
+/* ========================================================================== */
+
 #loading-wrapper {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.8); /* Background contrast */
+  background-color: rgba(0, 0, 0, 0.8);
   padding: 0 2vw;
   position: relative;
   z-index: 2;
@@ -35,73 +74,34 @@ body {
 #top-right {
   position: absolute;
   top: 2vh;
-  right: 2vw; /* Adjust to top-right */
+  right: 2vw;
   z-index: 10;
-  text-align: right; /* Align text to the right */
+  text-align: right;
   display: flex;
   flex-direction: column;
-  align-items: flex-end; /* Ensure content is aligned to the right */
+  align-items: flex-end;
 }
 
-.logo {
-  width: 25vw;
-  max-width: 200px;
-  height: auto;
-  margin-bottom: 1vh;
-  z-index: 2;
-}
-
-.logo img {
-  width: 15vh;
-  max-width: 200px;
-  height: auto;
-  display: block;
-}
+.logo { width: 25vw; max-width: 200px; height: auto; margin-bottom: 1vh; z-index: 2; }
+.logo img { width: 15vh; max-width: 200px; height: auto; display: block; }
 
 /* Scan Text (Titles) */
 .scan-text {
   font-family: 'TerminatorReal', 'Orbitron', 'Audiowide', sans-serif;
   color: #e74c3c;
   text-shadow: 0 0 5px rgba(255, 85, 85, 0.8), 0 0 15px rgba(255, 85, 85, 0.5);
-  font-size: 1.8rem;
   margin-bottom: 1vh;
   text-transform: uppercase;
-  text-align: right; /* Right-align text */
+  text-align: right;
 }
+h1.scan-text { font-size: clamp(1.6rem, 2.5vw, 3rem); letter-spacing: 0.12em; }
+h2.scan-text { font-size: clamp(1.2rem, 1.8vw, 2.2rem); color: #37ddfa; text-shadow: 0 0 5px #00ddff; }
+h3.scan-text { font-size: clamp(1.0rem, 1.3vw, 1.6rem); color: #3ccde7; text-shadow: 0 0 5px #00ddff; }
+h4.scan-text { font-size: clamp(0.8rem, 1.0vw, 1.2rem); color: #3ccde7; text-shadow: 0 0 5px #00ddff; }
 
-h1.scan-text {
-  font-size: 2vw;
-  margin-bottom: 1vh;
-  letter-spacing: 0.1em;
-  z-index: 5;
-}
-
-h2.scan-text, h3.scan-text {
-  margin-bottom: 1vh;
-  z-index: 5;
-}
-
-h2.scan-text {
-  font-size: 1.5vw;
-  color: #37ddfa;
-  text-shadow: 0 0 5px #00ddff;
-}
-
-h3.scan-text {
-  font-size: 1vw;
-  color: #3ccde7;
-  text-shadow: 0 0 5px #00ddff;
-}
-
-
-/* Scanline Effect */
+/* Generic scanline overlay (if you still use it elsewhere) */
 .scanlines {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
+  position: absolute; inset: 0; pointer-events: none;
   background: repeating-linear-gradient(
     0deg,
     rgba(0, 225, 255, 0.05) 0,
@@ -109,267 +109,318 @@ h3.scan-text {
     transparent 3px,
     transparent 3px
   );
-  z-index: 3;
-  opacity: 1;
+  z-index: 3; opacity: 1;
 }
 
-/* Console Styling */
+/* ================== T-800 DIAGNOSTICS CENTERPIECE ================== */
+/* Assumes you already use --feed-w for the left DOS column width.     */
+/* This block replaces the old map/bracket styles.                      */
+
+/* Bracket lives in the right pane (respects the left feed width) */
+.bracket-container{
+  position: absolute;
+  top: 50vh;
+  left: calc(1vw + var(--feed-w) + 2vw);
+  right: 1vw;
+  height: 45vh;
+  transform: translateY(-50%);
+  border: none;
+  overflow: hidden;
+  z-index: 2;
+
+  /* center whatever is inside (our SVG panel) */
+  display: grid;
+  place-items: center;
+
+  /* subtle outer glow, optional */
+  box-shadow: var(--diag-shadow);
+}
+
+/* The diagnostics wrapper (we animate this, not the SVG internals) */
+.diag-container{
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+
+  /* small “mounted in” scale; becomes 1.0 when .ready is added */
+  transform: scale(0.94);
+  transform-origin: center;
+  transition: transform var(--diag-enter-ms) ease-out;
+}
+.bracket-container.ready .diag-container{
+  transform: scale(1);
+}
+
+/* The responsive SVG */
+.diag-svg{
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: var(--diag-bg);              /* panel backdrop */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Keep the holo scanlines overlay clickable-off and on top */
+.holo-scanlines{
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(255,255,255,0.05) 0,
+    rgba(255,255,255,0.05) 2px,
+    transparent 3px,
+    transparent 3px
+  );
+  animation: scanline-animation 2s linear infinite;
+  opacity: 0.35;
+}
+
+/* Reuse your existing keyframes if present */
+@keyframes scanline-animation{
+  0%   { background-position: 0 0; }
+  100% { background-position: 0 100%; }
+}
+
+/* ========================================================================== */
+/* Left "quadrant" container + DOS boot                                       */
+/* ========================================================================== */
+
+.assembly-feed-container-left {
+  position: absolute;
+  top: 1vh; left: 1vw;
+  width: var(--feed-w);
+  height: calc(100vh - 2vh);
+  box-sizing: border-box;
+  background-color: rgba(0, 0, 0, 0.6);
+  border: 0.1vh solid #ffffff;
+  overflow: hidden;
+  z-index: 2;
+  box-shadow: 0 0 1vh rgba(255, 255, 255, 0.5);
+}
+
+.assembly-feed-container-left::before {
+  content: '';
+  position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.05) 0,
+    rgba(255, 255, 255, 0.05) 1px,
+    transparent 2px,
+    transparent 2px
+  );
+  z-index: 2;
+  opacity: 0.18;                 /* softer than before */
+  animation: scanline-animation 2s linear infinite;
+}
+
+/* Shift the map so it doesn’t sit under the left column */
+.bracket-container { left: calc(1vw + var(--feed-w) + 2vw); }
+
+/* DOS screen lives INSIDE the left container */
+#dos-screen.crt {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;              /* mono DOS */
+  border: none;
+  box-shadow: none;
+  overflow: hidden;
+}
+#dos-screen.crt::before,
+#dos-screen.crt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+#dos-screen.crt::before {
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(255,255,255,0.04) 0,
+    rgba(255,255,255,0.04) 1px,
+    transparent 2px,
+    transparent 2px
+  );
+  opacity: .18;
+  animation: dos-scan 2s linear infinite;
+}
+#dos-screen.crt::after {
+  background:
+    radial-gradient(ellipse at center, rgba(255,255,255,0.06) 0%, rgba(0,0,0,0) 60%),
+    linear-gradient(#000, #000);
+  mix-blend-mode: screen;
+  opacity: .28;
+}
+@keyframes dos-scan { to { background-position: 0 100%; } }
+
+/* Terminal text area (CRISP, no glow, no fixed width/height) */
+.terminal {
+  position: absolute;
+  inset: 0.8vh 0.8vw;            /* padding from edges */
+  font-family: "Perfect DOS VGA 437","PxPlus IBM VGA 8x16","Courier New",monospace !important;
+  font-weight: 400;
+  font-style: normal;
+  inset: var(--dos-pad-y) var(--dos-pad-x);
+  font-size: clamp(10px, 0.64vw, 12px);  /* small, DOS-y */
+  line-height: 1.06;                      /* dense rows */
+  color: #e8e8e8;                         /* not pure white, less bloom */
+  letter-spacing: 0;
+  text-shadow: none !important;           /* kill glow */
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: auto;
+  white-space: normal;                    /* single-line rows */
+  overflow: hidden;                       /* no scrollbars */
+}
+/* make sure nothing inside re-adds glow or transform */
+.terminal * {
+  text-shadow: none !important;
+  text-transform: none !important;
+}
+
+/* Row/columns */
+.terminal .assembly-line {
+  display: flex-start;
+  align-items: baseline;
+  gap: 0.4ch;                   /* tight spacing */
+}
+.terminal .assembly-line > span:first-child {
+  flex: 0 0 auto;
+  min-width: 4.5ch;             /* room for 4–5 digits */
+  text-align: right;
+  padding-right: 0.4ch;
+  opacity: .85;
+}
+.terminal .assembly-line > span:nth-child(2) {
+  flex: 0 0 var(--addr-w);/* address column width; tweak with --addr-w */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.terminal .assembly-line > span:nth-child(3) {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+/* Indented code lines (one text span after number) */
+.terminal .assembly-line.indented > span:nth-child(2) {
+  flex: 1 1 auto !important;
+  min-width: 0;
+  padding-left: 1ch;
+}
+
+/* ========================================================================== */
+/* Console ticker                                         */
+/* ========================================================================== */
+
+:root { --feed-w: 24vw; } /* same var you used for the left column width */
+
+/* Console: pinned to the bottom of the RIGHT region (i.e., to the right of the boot column) */
 #console {
   position: absolute;
-  bottom: 0;
-  left: 50vw;
-  transform: translateX(-50%); /* Center horizontally */
-  width: 45vw; /* Adjust width to fit within the layout */
-  height: 15vh;
-  background-color: rgba(0, 0, 0, 0.8);
-  padding: 1vw;
+  bottom: 6vh;
+
+  /* reserve the left column + a comfy gap, and keep a 1vw margin on the right */
+  left: calc(1vw + var(--feed-w) + 2vw);
+  right: 25vw;
+
+  /* sizing/looks */
+  box-sizing: border-box;
+  padding: 0.9vh 1.2vw;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(0, 255, 128, 0.35);
+  box-shadow:
+    0 0 1.2vh rgba(0, 255, 128, 0.25) inset,
+    0 0 1.2vh rgba(0, 0, 0, 0.6);
+  border-radius: 4px;
+
   font-family: 'Courier New', monospace;
-  font-size: 0.8vw;
-  color: #00ff00;
-  text-shadow: 0 0 5px rgba(255, 255, 255, 0.8); /* Glowing white effect */
+  color: #00ff66;
+
+  height: auto;
+  max-height: 3.2em;      /* ~two lines max for safety */
   overflow: hidden;
-  z-index: 10; /* Make sure it’s above other elements */
-  opacity: 0.8;
+  z-index: 8;
+}
+
+/* one-line ticker behavior */
+#console #console-text {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: clamp(12px, 0.95vw, 16px);
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 4px rgba(0,255,128,0.5);
+}
+/* lay out prompt, text, cursor on one line */
+#console {
+  display: flex;
+  align-items: baseline;   /* keeps the > and text aligned */
+  gap: 0.5ch;
+}
+
+#console-prompt {
+  flex: 0 0 auto;
+  margin-right: 0.25ch;    /* tiny breathing room after ">" */
+  color: #00ff66;
+}
+
+#console #console-text {
+  flex: 1 1 auto;          /* take the remaining width */
+  min-width: 0;            /* critical for ellipsis in flex */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: clamp(12px, 0.95vw, 16px);
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 4px rgba(0,255,128,0.5);
 }
 
 #cursor {
+  flex: 0 0 auto;
+  width: 0.6ch;
+  margin-left: 0.2ch;
   font-weight: bold;
   color: #00ff00;
   animation: blink 1s infinite;
 }
 
-/* Bracket Container */
-.bracket-container {
-  position: absolute;
-  top: 50vh;
-  left: 50vw;
-  width: 40vw; /* Increased size */
-  max-width: 40vw;
-  height: 45vh; /* Increased height */
-  max-height: 45vh;
-  transform: translate(-50%, -50%) rotate(0deg); /* Centered */
-  border: 2px solid #fff; /* Optional: Visible brackets */
-  border-radius: 10px; /* Optional: Rounded bracket */
-  overflow: hidden; /* Ensure the map stays within the bracket */
-  z-index: 2;
-}
 
-/* Map Image */
-.map-image {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 100%; /* Adjust size to fit within the bracket */
-  height: 100%;
-  transform: translate(-50%, -50%) scale(0.5) rotate(180deg); /* Start rotated and small */
-  transition: transform 4s ease-out, opacity 4s ease-in-out; /* Rotate, zoom, and opacity change */
-  opacity: 0; /* Start invisible for holographic fade-in */
-  will-change: transform, opacity;
-}
+/* ========================================================================== */
+/* Music Play Button                                                          */
+/* ========================================================================== */
 
-/* Scanlines (overlay on top of the map for the holo effect) */
-.holo-scanlines {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(90, 0, 0, 0.171) 0,
-    rgba(146, 0, 0, 0.212) 2px,
-    transparent 0.5vh,
-    transparent 0.5vh
-  );
-  z-index: 3; /* Ensure it’s above the map but below the main UI */
-  opacity: 1; /* Subtle scanlines for the hologram look */
-  animation: scanline-animation 2s linear infinite; /* Smooth moving scanlines */
-}
-
-/* Scanline animation to move lines up and down */
-@keyframes scanline-animation {
-  0% {
-    background-position: 0 0;
-  }
-  100% {
-    background-position: 0 100%;
-  }
-}
-
-/* Assembly Feed Containers */
-.assembly-feed-container-left, .assembly-feed-container-right {
-  position: absolute;
-  background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent background */
-  border: 0.1vh solid #ffffff; /* White border for the container */
-  overflow: hidden; /* Ensure content doesn't overflow */
-  z-index: 1; /* Place above the background but below important elements */
-  box-shadow: 0 0 1vh rgba(255, 255, 255, 0.5); /* Subtle glow */
-}
-
-/* Positioning for the Left Container */
-.assembly-feed-container-left {
-  top: 1vh;
-  left: 1vw;
-  max-height: calc(100vh - 2vh);
-  max-width: 20vw;
-}
-
-/* Positioning for the Right Container */
-.assembly-feed-container-right {
-  top: 30vh;
-  right: 1vw;
-}
-
-/* Scanlines Effect for Containers */
-.assembly-feed-container-left::before, .assembly-feed-container-right::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(255, 255, 255, 0.05) 0,
-    rgba(255, 255, 255, 0.05) 0.2vh,
-    transparent 0.4vh,
-    transparent 0.4vh
-  );
-  z-index: 2; /* Ensure scanlines are above the background but below text */
-  opacity: 0.3; /* Subtle scanlines */
-  animation: scanline-animation 2s linear infinite; /* Moving scanlines */
-}
-
-/* Assembly Code Feed Left Column */
-.assembly-feed-left {
-  position: relative; /* Position inside container */
-  font-family: 'Courier New', monospace;
-  font-size: 0.8vw;
-  line-height: 0.7vw;
-  color: #ffffff;
-  text-shadow: 0 0 0.5vh rgba(255, 255, 255, 0.8); /* Glowing white effect */
-  z-index: 3; /* Ensure it's above the scanlines */
-  opacity: 0.8; /* Adjust opacity for better readability */
-  padding: 0.8vh;
-  overflow-y: auto; /* Allow scrolling if content overflows */
-}
-
-/* Assembly Code Feed Right Column */
-.assembly-feed-right {
-  position: relative; /* Position inside container */
-  font-family: 'Courier New', monospace;
-  font-size: 0.8rem;
-  line-height: 1.5vw;
-  color: #ffffff;
-  text-shadow: 0 0 0.5vh rgba(255, 255, 255, 0.8); /* Glowing white effect */
-  z-index: 3; /* Ensure it's above the scanlines */
-  opacity: 0.8; /* Adjust opacity for better readability */
-  padding: 0.5vh;
-  overflow-y: auto; /* Allow scrolling if content overflows */
-}
-
-/* Lore Feed Container (Right Column) */
-.lore-feed-container {
-  position: absolute;
-  top: 25vh;
-  right: 1vw;
-  max-width: 18vw;
-  width: 18vw;
-  max-height: calc(100vh - 2vh); /* Cap height to prevent overflow */
-  background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent background */
-  border: 0.1vh solid #ffffff;
-  box-shadow: 0 0 1vh rgba(255, 255, 255, 0.5); /* Subtle glow */
-  padding: .8vh;
-  z-index: 1;
-  overflow-y: auto; /* Scrollable if content exceeds container height */
-}
-
-/* Scanlines Effect for Lore Feed */
-.lore-feed-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(255, 255, 255, 0.05) 0,
-    rgba(255, 255, 255, 0.05) 0.2vh,
-    transparent 0.3vh,
-    transparent 0.3vh
-  );
-  z-index: 2;
-  opacity: 0.3;
-  animation: scanline-animation 2s linear infinite;
-}
-
-/* Lore Feed Text Styling */
-.lore-feed {
-  font-family: 'Courier New', monospace;
-  font-size: 1vw;
-  color: #18f3e1;
-  text-shadow: 0 0 0.5vh rgba(255, 255, 255, 0.8);
-  z-index: 3;
-  opacity: 0.8;
-  padding: 0.7vh;
-}
-
-/* Scanline animation to move lines up and down */
-@keyframes scanline-animation {
-  0% {
-    background-position: 0 0;
-  }
-  100% {
-    background-position: 0 100%;
-  }
-}
-
-
-/* Music Play Button */
 #play-music {
   position: absolute;
-  bottom: 22vh; /* Adjusted to be above the console */
-  left: 50vw;
+  bottom: 22vh;
+  left: 50%;
   transform: translateX(-50%);
   z-index: 10;
   padding: 1vh 2vh;
-  background-color: #ff0000;
-  color: white;
-  border: none;
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-family: 'Orbitron', sans-serif; /* Sci-fi font */
-  text-transform: uppercase;
-  transition: background-color 0.3s ease;
-  opacity: 0.5;
+  background-color: #ff0000; color: #fff; border: none; cursor: pointer;
+  font-size: 0.8rem; font-family: 'Orbitron', sans-serif; text-transform: uppercase;
+  transition: background-color 0.3s ease; opacity: 0.5;
 }
+#play-music:hover { background-color: #ff5555; }
 
-#play-music:hover {
-  background-color: #ff5555; /* Lighter red on hover */
-}
+/* ========================================================================== */
+/* Keyframes                                                                  */
+/* ========================================================================== */
 
-/* Blinking cursor animation */
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
-}
-
-/* Keyframes for Pan and Zoom Animation */
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+@keyframes scanline-animation { 0%{background-position:0 0} 100%{background-position:0 100%} }
 @keyframes panZoomEffect {
-  0% {
-    background-position: 0% 25%;
-    background-size: 140%;
-  }
-  50% {
-    background-position: 100% 25%;
-    background-size: 160%;
-  }
-  100% {
-    background-position: 0% 50%;
-    background-size: 140%;
-  }
+  0% { background-position: 0% 25%; background-size: 140%; }
+  50% { background-position: 100% 25%; background-size: 160%; }
+  100% { background-position: 0% 50%; background-size: 140%; }
 }

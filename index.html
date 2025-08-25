@@ -18,32 +18,21 @@
   <div id="loading-wrapper">
   <!-- Top Right Container for Logo and Headers -->
   <div id="top-right">
-    <h1 class="scan-text">The Future War</h1>
-    <h2 class="scan-text">Colorado Springs</h2>
-    <h3 class="scan-text">Terminator Serious Roleplay</h3>
+    
   </div>
 
   <!-- Assembly Feed Left Column -->
   <div class="assembly-feed-container-left">
-    <div class="assembly-feed-left" id="assembly-feed-left">
-      <!-- Left assembly code will be generated here -->
-    </div>
+    <!-- DOS / 386 boot screen -->
+  <div id="dos-screen" class="crt">
+  <div id="boot-feed" class="terminal"></div>
+</div>
   </div>
 
-  <!-- Lore Feed Container (Right Column) -->
-  <div class="lore-feed-container">
-    <div class="lore-feed" id="lore-feed">
-    </div>
-  </div>
-
-
-  <!-- Bracket Container (with map and scanlines) -->
-  <div id="bracket-container" class="bracket-container" style="display:none;">
-    <div id="map-container" class="map-container">
-      <img src="img/washingtonmap2.png" class="map-image" alt="Map">
-    </div>
-    <div class="holo-scanlines"></div> <!-- Scanlines overlay -->
-  </div>
+<div id="bracket-container" class="bracket-container">
+  <div id="diag-root" class="diag-container"></div>
+  <div class="holo-scanlines"></div>
+</div>
 
   <!-- Console Element (for terminal-style text) -->
   <div id="console">
@@ -66,9 +55,11 @@
   <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
 
   <!-- Custom Scripts -->
-  <script src="js/config.js"></script> <!-- Config Values -->
-  <script src="js/loading.js"></script> <!-- Custom JavaScript -->
-  <script src="js/mapanim.js"></script> <!-- JS for map animation -->
+  <script defer src="js/config.js"></script> <!-- Config Values -->
+  <script defer src="js/cursorTyper.js"></script>
+  <script defer src="js/dosBoot.js"></script>
+  <script defer src="js/loading.js"></script> <!-- Custom JavaScript -->
+  <script defer src="js/diag.js"></script>
 </body>
 
 </html>
