@@ -8,12 +8,16 @@
   --addr-w: 10ch;
 
   /* DOS terminal paddings / gaps */
+  
   --dos-pad-x: 0.7vw;
   --dos-pad-y: 0.6vh;
+
+  --diag-w: 24vw;
+  --diag-gap: 1.5vw;
   --diag-enter-ms: 900ms;
   --diag-border-color: #ffffff;
   --diag-bg: rgba(0,0,0,0.45);
-  --diag-border-radius: 10px;
+  --diag-border-radius: 12px;
   --diag-shadow: 0 0 1vh rgba(255,255,255,0.35);
 }
 
@@ -41,18 +45,10 @@ body {
 /* Optional DOS VGA recreation (include file if you have it) */
 @font-face {
   font-family: "Perfect DOS VGA 437";
-  src: url('../fonts/Perfect\ DOS\ VGA\ 437.ttf') format('truetype');
+  src: url('../fonts/Perfect\ DOS\ VGA\ 437\ Win.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
-}
-
-/* Respect reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  body { animation: none !important; }
-  .holo-scanlines, .assembly-feed-container-left::before, #dos-screen.crt::before {
-    animation: none !important;
-  }
 }
 
 /* ========================================================================== */
@@ -82,9 +78,6 @@ body {
   align-items: flex-end;
 }
 
-.logo { width: 25vw; max-width: 200px; height: auto; margin-bottom: 1vh; z-index: 2; }
-.logo img { width: 15vh; max-width: 200px; height: auto; display: block; }
-
 /* Scan Text (Titles) */
 .scan-text {
   font-family: 'TerminatorReal', 'Orbitron', 'Audiowide', sans-serif;
@@ -100,7 +93,6 @@ h2.scan-text { font-size: clamp(1.2rem, 1.8vw, 2.2rem); color: #37ddfa; text-sha
 h3.scan-text { font-size: clamp(1.0rem, 1.3vw, 1.6rem); color: #3ccde7; text-shadow: 0 0 5px #00ddff; }
 h4.scan-text { font-size: clamp(0.8rem, 1.0vw, 1.2rem); color: #3ccde7; text-shadow: 0 0 5px #00ddff; }
 
-/* Generic scanline overlay (if you still use it elsewhere) */
 .scanlines {
   position: absolute; inset: 0; pointer-events: none;
   background: repeating-linear-gradient(
@@ -113,45 +105,172 @@ h4.scan-text { font-size: clamp(0.8rem, 1.0vw, 1.2rem); color: #3ccde7; text-sha
   z-index: 3; opacity: 1;
 }
 
-/* ================== T-800 DIAGNOSTICS CENTERPIECE ================== */
-/* Assumes you already use --feed-w for the left DOS column width.     */
-/* This block replaces the old map/bracket styles.                      */
-
-/* Bracket = right pane container */
-.bracket-container{
-  position: absolute;
-
-  top: 50vh;
-  left: calc(1vw + var(--feed-w, 22vw) + 2vw);
-  right: 1vw;
-  transform: translateY(-50%);
-
-  aspect-ratio: 1200 / 560;
-  height: 46vh;       
-  border: 2px solid #fff;
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 0 1vh rgba(255,255,255,0.35);
-  display: grid;
-  place-items: stretch; 
-}
-
-/* The SVG wrapper must not add padding/margins */
-.diag-container{
-  width: 100%;
-  height: 100%;
-  padding: 0;               /* ensure no extra inset */
-}
-
-/* SVG should stretch to container */
-.diag-svg{ width: 100%; height: 100%; display: block; }
-
-/* Keep the holo scanlines overlay clickable-off and on top */
-.holo-scanlines{
+/* Splash overlay container already defined as .startseq… ensure it’s on top */
+.startseq {
   position: absolute;
   inset: 0;
+  display: none;
+  z-index: 30;         /* above diag */
   pointer-events: none;
-  z-index: 3;
+}
+.startseq--visible { display: grid; place-items: center; }
+
+.startseq__panel {
+  text-align: center;
+  max-width: 96%;
+  max-height: 92%;
+  padding: 0.75rem 1.25rem;
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 12px;
+  background:
+    radial-gradient(ellipse at center,
+      rgba(0,0,0,.42) 0%,
+      rgba(0,0,0,.28) 60%,
+      rgba(0,0,0,0) 100%);
+  box-shadow:
+    inset 0 0 28px rgba(55,221,250,0.22),
+    0 0 18px rgba(0,0,0,0.6);
+}
+
+.startseq__inner { display:inline-block; transform-origin:center top; }
+.startseq__pre{
+  margin:0;
+  white-space:pre;
+  font-family: "Perfect DOS VGA 437","Courier New", Consolas, Menlo, monospace;
+  font-size:16px;
+  line-height:1;
+  letter-spacing:0;
+  font-variant-ligatures:none;
+  color: #ff3b3b; /* Skynet red */
+  text-shadow:
+    0 0 6px rgba(255, 59, 59, .6),
+    0 0 16px rgba(255, 0, 0, .25);
+}
+
+/* Two-tone ASCII */
+.startseq__pre--logo {
+  color: #ff3b3b; /* Skynet red */
+  text-shadow:
+    0 0 6px rgba(255, 59, 59, .6),
+    0 0 16px rgba(255, 0, 0, .25);
+  font-family: "Perfect DOS VGA 437","Courier New", Consolas, Menlo, monospace; /* keeps block chars aligned */
+}
+
+.startseq__caption {
+  color: #9fdcff; /* white/cyan-ish caption */
+  text-shadow: 0 0 4px rgba(55,221,250,.45);
+  margin-top: .35rem;
+}
+
+.startseq__log{
+  margin:.6rem 0 0;
+  text-align:left;
+  white-space:pre;
+  font-family: "Perfect DOS VGA 437","Courier New", Consolas, Menlo, monospace;
+  font-size:14px;
+  line-height:1.1;
+  color: #9fdcff;
+  text-shadow: 0 0 2px rgba(55, 221, 250, .35);
+}
+.startseq--fadeout { animation: startseqFade 700ms ease forwards; }
+@keyframes startseqFade { to { opacity:0; } }
+
+/* Hide any scrolling during the splash */
+.startseq,
+.startseq__panel,
+.startseq__pre,
+.startseq__log {
+  overflow: hidden !important; /* no scrollbars */
+}
+
+/* Belt & suspenders: remove OS scrollbars if a UA sneaks them in */
+.startseq__panel,
+.startseq__pre,
+.startseq__log {
+  scrollbar-width: none;                 /* Firefox */
+}
+.startseq__panel::-webkit-scrollbar,
+.startseq__pre::-webkit-scrollbar,
+.startseq__log::-webkit-scrollbar {
+  width: 0;
+  height: 0;                             /* WebKit/Blink */
+}
+
+/* ================== T-800 DIAGNOSTICS CENTERPIECE ================== */
+/* This block replaces the old map/bracket styles.                      */
+
+/* New center container */
+#centeredcontent{
+  position: absolute;
+  top: 50vh;
+  left: calc(1vw + var(--feed-w, 22vw) + 1.5vw);
+  right: .35vw;
+  transform: translateY(-50%);
+
+  /* size & look */
+  aspect-ratio: 1200 / 560;
+  height: 52vh;              /* tweak 44–56vh if desired */
+  min-height: 360px;
+  background: var(--diag-bg);
+  border: 2px solid var(--diag-border-color);
+  border-radius: var(--diag-border-radius);
+  box-shadow: var(--diag-shadow);
+  overflow: hidden;
+
+  display: grid;
+  place-items: stretch;
+  z-index: 2;
+}
+
+/* SVG mount should fill the box */
+#centeredcontent #diag-root{ width:100%; height:100%; }
+#centeredcontent .diag-svg{ display:block; width:100%; height:100%; }
+
+/* --- Diagnostics pane: crisp mono + safe right gutter --- */
+#centeredcontent .diag-svg text{
+  font-family: "Perfect DOS VGA 437","Courier New", monospace;
+  font-size: 14px;             /* tweak freely (16–18 works well) */
+  letter-spacing: 0.01em;
+  text-shadow: none !important;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  paint-order: stroke fill;    /* reduces white fringe against glow */
+}
+
+/* Diagnostics: crisper SVG text + predictable rendering */
+.diag-svg {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+.diag-svg text {
+  paint-order: stroke; /* avoids halo on glow backgrounds */
+  stroke-width: 0;
+}
+
+#diag-root .trp-links line,
+#diag-root .trp-nodes circle {
+  shape-rendering: geometricPrecision;
+  vector-effect: non-scaling-stroke;
+}
+#diag-root .trp-links,
+#diag-root .trp-nodes {
+  color: var(--diag-accent, #7ad3ff);
+  pointer-events: none;
+}
+
+
+/* header keeps its glow; scale a touch on small widths */
+@media (max-width: 1400px){
+  #centeredcontent .diag-svg text[filter="url(#glow)"]{
+    font-size: 20px;
+    letter-spacing: 0.08em;
+  }
+}
+
+/* Scanline overlay scoped to the new container */
+ .holo-scanlines{
+  position: absolute; inset: 0;
+  pointer-events: none;
   background: repeating-linear-gradient(
     0deg,
     rgba(255,255,255,0.05) 0,
@@ -160,13 +279,7 @@ h4.scan-text { font-size: clamp(0.8rem, 1.0vw, 1.2rem); color: #3ccde7; text-sha
     transparent 3px
   );
   animation: scanline-animation 2s linear infinite;
-  opacity: 0.35;
-}
-
-/* Reuse your existing keyframes if present */
-@keyframes scanline-animation{
-  0%   { background-position: 0 0; }
-  100% { background-position: 0 100%; }
+  opacity: .35;
 }
 
 /* ========================================================================== */
@@ -382,6 +495,23 @@ h4.scan-text { font-size: clamp(0.8rem, 1.0vw, 1.2rem); color: #3ccde7; text-sha
 }
 #play-music:hover { background-color: #ff5555; }
 
+/* Keep the holo scanlines overlay clickable-off and on top */
+.holo-scanlines{
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(255,255,255,0.05) 0,
+    rgba(255,255,255,0.05) 2px,
+    transparent 3px,
+    transparent 3px
+  );
+  animation: scanline-animation 2s linear infinite;
+  opacity: 0.35;
+}
+
 /* ========================================================================== */
 /* Keyframes                                                                  */
 /* ========================================================================== */
@@ -393,16 +523,3 @@ h4.scan-text { font-size: clamp(0.8rem, 1.0vw, 1.2rem); color: #3ccde7; text-sha
   50% { background-position: 100% 25%; background-size: 160%; }
   100% { background-position: 0% 50%; background-size: 140%; }
 }
-
-/* === Skynet Diagnostics – container helpers === */
-.diag-wrap{position:relative;width:100%;height:100%;}
-.diag-svg{display:block;width:100%;height:100%;}
-.diag-noise{position:absolute;inset:0;pointer-events:none;opacity:.08;mix-blend-mode:screen}
-
-/* optional: crisper mono text inside the panel */
-.diag-mono{font-family:'Courier New',monospace}
-
-/* tiny accessory gauges */
-.diag-gauge-bg{fill:rgba(255,255,255,.08)}
-.diag-gauge-fg{fill:#37ddfa}
-.diag-gauge-tick{stroke:rgba(255,255,255,.25);stroke-width:1}

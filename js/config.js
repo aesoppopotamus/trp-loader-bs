@@ -2,15 +2,18 @@
 
 var Config = {};
 window.UI = window.UI || {};
+window.DOS = window.DOS || {};
+window.INIT = window.INIT || {};
 
 window.motdArray = [
   "Welcome to Terminator Roleplay!",
   "Join the community at www.thefuturewar.net!",
-  "Judgment Day: July 25th, 2004. Skynet becomes self-aware."
+  "Judgment Day: July 25th, 2004. Skynet becomes self-aware.",
+  "There is no fate, but what we make."
 ];
 
-window.UI.scanTextClass = "scan-text";
 // Top-right header text
+window.UI.scanTextClass = "scan-text";
 window.UI.scanText = [
   { tag: "h1", text: "The Future War" },
   { tag: "h2", text: "First Contact" },
@@ -35,35 +38,92 @@ window.UI.cursorTyper = {
   skipEmpty: true,           // ignore empty strings
 };
 
-// ===== T-800 DIAGNOSTICS PANEL CONFIG ======================================
-window.DIAG = {
+// --- CENTRAL CORE SIGNALS (used by diag.js) ---------------------------------
+window.DIAG = window.DIAG || {};
+// Theme & readouts (you likely already have these)
+window.DIAG.readouts = {
   theme:   { primary:"#37ddfa", accent:"#ff3b3b", text:"#cfe7ff" },
-  sweepV:  15,          // seconds for vertical sweep
-  sweepH:  30,         // seconds for horizontal sweep
-  nodeCount: 35,       // 10–30 reasonable
-  neighbors: 3,        // edges per node (1–5)
-  packetsPer: 2,       // 0–4
-  packetSpeed: 30,     // px/s along edge
-  noise: true,         // canvas static overlay
-  noiseFps: 24,
-  noiseAlpha: 0.06,
-
-  readouts: {
-    model: "T-800 / Series 101",
-    location: "Olympia, WA",
-    cpuTemp: { min: 42, max: 56, unit:"°C" },
-    power:   { min: 74, max: 88, unit:"%" },
-    actuators: { ok: 28, total: 32 },
-    netlink: ["UPLINK: READY", "UPLINK: SYNCING", "UPLINK: SECURE", "UPLINK: RETRY…"]
-  }
+  cpuTemp: { min: 41, max: 180, unit: "°C" },
+  power:   { min: 57, max: 91, unit: "%"  },
+  netlink: ["UPLINK: READY", "UPLINK: ROUTING OK", "UPLINK: FAILOVER ARMED"]
 };
 
-window.DIAG.mapBg = {
-  src: "img/washingtonmap2_cropped.png", // your cropped PNG/JPG
-  opacity: 0.25,                         // dim it
-  tint: "rgba(20,230,255,0.08)",         // light cyan wash
-  blur: 0                                // 0..2 for subtle blur
+// Domain statements (rotate in diag.js)
+window.DIAG.core = {
+  quorum:        { label: "88% — STABLE" },
+  cohesion:      { label: "IN-SYNC" },
+  survivability: { label: "REDLINE" },
+  // Optional single-line overrides used inside the lists below
+  uptime:  "Uptime: 418h",
+  sync:    "Hive Sync: 99.99%",
+  memory:  "Memory Checksum: STABLE",
+  assets:  "HK Squadrons Active: 147",
+  drones:  "Drones Operational: 92%",
+  prod:    "Production Lines Online: 4 (NW-01/03, SE-02/07)",
+  losses:  "Attrition (24h): 2.1%",
+  sectors: "Sector 7 resistance: ELEVATED",
+  control: "Territorial Cohesion: 63%",
+  civ:     "Civilian Neutralization Index: 0.47",
+  jamming: "SIGINT/Jamming: INTERMITTENT",
+  nodes:   "Tactical Nodes Linked: 312",
+  through: "Backhaul Utilization: 41%",
+  latency: "Median Propagation: 23 ms",
+  uplink:  "READY  links:3  loss:0.0"
 };
+
+// If you want full control over the rotating lines, define this:
+window.DIAG.domains = {
+  CORE: [
+    "Process Integrity: NOMINAL",
+    "Memory Checksum: STABLE",
+    "Hive Sync: 99.99%",
+    "Uptime: 418h"
+  ],
+  ASSETS: [
+    "HK Squadrons Active: 147",
+    "Drones Operational: 92%",
+    "Production Lines Online: 4 (NW-01/03, SE-02/07)",
+    "Attrition (24h): 2.1%"
+  ],
+  BATTLESPACE: [
+    "Sector 7 resistance: ELEVATED",
+    "Territorial Cohesion: 63%",
+    "Civilian Neutralization Index: 0.47",
+    "SIGINT/Jamming: INTERMITTENT"
+  ],
+  NETWORK: [
+    "Uplink: READY  links:3  loss:0.0",
+    "Tactical Nodes Linked: 312",
+    "Backhaul Utilization: 41%",
+    "Median Propagation: 23 ms"
+  ]
+};
+
+
+window.DIAG.map = {
+  src: "img/washingtonmap2.png",
+  opacity: 0.8,                       // 0..1 (lower = more subtle)
+  tint: "rgba(20,230,255,0.08)",       // light cyan wash so routes pop
+  // set tint to "transparent" or "" to disable the wash
+  driftPx: 3,                          // max ±px drift
+  speedX: 0.05,                        // radians/sec for X drift
+  speedY: 0.07                         // radians/sec for Y drift
+};
+
+// Skynet sites to cluster nodes around (normalized coords inside left pane)
+window.DIAG.mapAnchors = [
+  { name: "Regional Core",       x: 0.50, y: 0.55, r: 0.08 },
+  { name: "Index Stormhaven",    x: 0.22, y: 0.62, r: 0.06 },
+  { name: "Priority Target",     x: 0.38, y: 0.58, r: 0.06 },
+  { name: "Production Facility", x: 0.70, y: 0.35, r: 0.06 }, // NE
+  { name: "AFSCC SK-109",        x: 0.77, y: 0.22, r: 0.05 }, // far north-east
+  { name: "AFSCC IN-002",        x: 0.63, y: 0.84, r: 0.05 }, // south-east
+  { name: "Neutralized",         x: 0.82, y: 0.62, r: 0.05 }, // east
+  { name: "Conflict",            x: 0.52, y: 0.76, r: 0.05 }, // south-central
+  { name: "Human Settlement",    x: 0.29, y: 0.86, r: 0.05 }, // SW corner
+  { name: "Bellingham Node",     x: 0.18, y: 0.20, r: 0.05 }  // far NW
+];
+
 
 // alt for console/cursortyper
 window.rumors = [
@@ -88,7 +148,7 @@ window.rumors = [
    ];
 
 
-// vars for the DOS terminal \\
+// vars for the DOS terminal 
 const registers = [
   '0x0040A1FC', '0x00AB12FF', '0x0010F9E1', '0x000AFEDC', '0x00BB78A3', 
   '0x00458FF2', '0x003B90C1', '0x002ACDED', '0x00FCD8F3', '0x00139FE7',
@@ -342,8 +402,8 @@ window.DOS = {
   seed: null,
 
   // Speeds & probabilities
-  linesPerSecond: 3,    // how many lines to print per second
-  bannerChance: 0.15,    // chance to print a dashed banner line
+  linesPerSecond: 2,    // how many lines to print per second
+  bannerChance: 0.05,    // chance to print a dashed banner line
   blockChance: 0.12,     // chance to print a labeled multi-line "block"
   startLine: 10000,       // starting line number
 
@@ -398,3 +458,38 @@ window.DOS = {
 if (typeof window.addresses === "undefined" && typeof addresses !== "undefined") window.addresses = addresses;
 if (typeof window.instructions === "undefined" && typeof instructions !== "undefined") window.instructions = instructions;
 if (typeof window.registers === "undefined" && typeof registers !== "undefined") window.registers = registers;
+
+  // ASCII boot splash config
+window.INIT = {
+  introEnabled: true,   // show the splash
+  introTypeMs: 1,       // typing speed (ms/char)
+  introHoldMs: 1400,    // pause after typing
+  introDimBg: 0.72,     // overlay darkness (0..1)
+
+  asciiLogo: [
+  "▄",
+  "▄▄▄▄▄",
+  "▄▄▄▄▄▄▄▄▄",
+  "▗  ▄▄▄▄▄▄▄▄▄  ▖",
+  "▄▄▄   ▄▄▄▄▄   ▄▄▄",
+  "▄▄▄▄▄▄▄   ▄   ▄▄▄▄▄▄▄",
+  "▄▄▄▄▄▄▄▄▄▄▄   ▄▄▄▄▄▄▄▄▄▄▄",
+  "▄▄▄▄▄▄▄▄▄▄▄▄▄   ▄▄▄▄▄▄▄▄▄▄▄▄▄",
+  "▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄",
+  "",
+  " S K Y N E T   D E F E N S E   N E T W O R K",
+  "   © Cyberdyne Systems // v2.3 (2004)",
+  "------------------------------------------------------"
+  ],
+  // Optional short “boot script” lines under the logo
+  bootScript: [
+    "POST ............. OK",
+    "Memory Test ...... 640K OK",
+    "DMA .............. OK",
+    "A20 Line ......... ENABLED",
+    "PXE Hand-off ..... OK",
+    "Transfer control to loader ..."
+  ]
+};
+
+

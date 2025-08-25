@@ -1,33 +1,16 @@
-// Skynet System Diagnostics (aligned grid layout)
-// Vanilla JS + SVG + tiny canvas noise overlay
+// Skynet System Diagnostics – layout with gauges UNDER values
 (function () {
-  // ===== Config =====
   const CFG   = window.DIAG || {};
   const theme = CFG.theme || {};
   const R     = CFG.readouts || {};
+  const MAP   = CFG.map || {};
 
   const C_PRIMARY = theme.primary || "#37ddfa";
   const C_ACCENT  = theme.accent  || "#ff3b3b";
   const C_TEXT    = theme.text    || "#cfe7ff";
   const C_GRID    = theme.grid    || "rgba(255,255,255,0.045)";
 
-  const SWEEP_VERT_SECONDS = CFG.sweepV ?? 6;
-  const SWEEP_HORZ_SECONDS = CFG.sweepH ?? 9;
-
-  const NODE_COUNT   = Math.max(10, Math.min(30, CFG.nodeCount ?? 18));
-  const NEIGHBORS    = Math.max(1,  Math.min(5,  CFG.neighbors  ?? 3));
-  const PACKETS_PER  = Math.max(0,  Math.min(4,  CFG.packetsPer ?? 2));
-  const PACKET_SPEED = CFG.packetSpeed ?? 70;
-
-  const NOISE_ENABLE = CFG.noise !== false;
-  const NOISE_FPS    = CFG.noiseFps ?? 24;
-  const NOISE_ALPHA  = CFG.noiseAlpha ?? 0.06;
-
-  const CPU_RANGE = R.cpuTemp || { min:41, max:55, unit:"°C" };
-  const PWR_RANGE = R.power   || { min:74, max:89, unit:"%"  };
-  const ACTUATORS = R.actuators || { ok: 28, total: 32 };
-
-  // ===== Mount =====
+  // ----- mount ---------------------------------------------------------------
   const root = document.getElementById("diag-root");
   if (!root) return;
   root.innerHTML = "";
@@ -35,292 +18,227 @@
   const wrap = div("diag-wrap");
   root.appendChild(wrap);
 
-  // ===== SVG root =====
   const W = 1200, H = 560;
-  const svg = svgEl("svg", { viewBox:`0 0 ${W} ${H}`, class:"diag-svg", preserveAspectRatio:"xMidYMid meet" });
+  const svg = svgEl("svg", {
+    viewBox:`0 0 ${W} ${H}`,
+    class:"diag-svg",
+    preserveAspectRatio:"xMidYMid meet"
+  });
   wrap.appendChild(svg);
 
-  // ===== defs =====
+  // defs
   const defs = svgEl("defs");
-  defs.append(
-    glow("glow", 2.2),
-    glow("hardglow", 3.6),
-    gradY("sweepY", [[0, C_PRIMARY, 0], [0.5, C_PRIMARY, .55], [1, C_PRIMARY, 0]]),
-    gradX("sweepX", [[0, C_PRIMARY, 0], [0.5, C_PRIMARY, .5], [1, C_PRIMARY, 0]])
-  );
+  defs.append(glow("glow", 2.2), glow("hardglow", 3.4));
   svg.append(defs);
 
-  // ===== Backdrop + grid =====
+  // backdrop + grid
   rect(svg, 0,0,W,H, { fill:"rgba(0,0,0,0.58)" });
   grid(svg, W, H, 20, C_GRID);
 
-  // ===== Layout anchors =====
-  const PAD = 48;
-  const LEFT_X = PAD;
-  const LEFT_W = 540;
-  const RIGHT_X = LEFT_X + LEFT_W + 56;
-  const TOP_Y  = 38;
+  // ----- layout anchors ------------------------------------------------------
+  const PAD     = 48;
+  const LEFT_X  = PAD;
+  const LEFT_W  = 720;                 // big map pane
+  const RIGHT_X = LEFT_X + LEFT_W + 26;
+  const TOP_Y   = 38;
 
-  // Right column grid
-  const COL_LABEL_X = RIGHT_X;        // "MODEL:", "CPU CORE:", etc
-  const COL_VALUE_X = RIGHT_X + 170;  // value text
-  const COL_VIS_X   = RIGHT_X + 360;  // bars/scope start
-  const BASE_Y      = TOP_Y + 46;     // first baseline
-  const ROW         = 28;             // row height
+  // right-panel columns
+  const RIGHT_SAFE_R   = W - PAD - 18; // right “safe” edge
+  const COL_GAP        = 14;
+  const LABEL_COL_W    = 125;
+  const VALUE_COL_W    = 210;
 
-  const rowY = (n) => BASE_Y + n*ROW;
+  const COL_LABEL_X = RIGHT_X;
+  const COL_VALUE_X = COL_LABEL_X + LABEL_COL_W + COL_GAP; // values start here
 
-  // Divider between left/right panes
-  line(svg, LEFT_X+LEFT_W, TOP_Y-16, LEFT_X+LEFT_W, H-PAD, {
-    stroke:C_PRIMARY, "stroke-opacity":0.55, "stroke-width":2.4,
-    filter:"url(#glow)", "vector-effect":"non-scaling-stroke"
-  });
+  // row spacing (we’ll put gauges under the value, so give them room)
+  const BASE_Y = TOP_Y + 46;
+  const ROW    = 32;                   // taller rows = breathing room
+  const rowY   = (n)=> BASE_Y + n*ROW;
 
-  // ===== Header =====
-  text(svg, COL_LABEL_X, TOP_Y+6, "SYSTEM DIAGNOSTICS", {
-    fill:C_PRIMARY, "font-family":"'TerminatorReal','Orbitron','Audiowide',sans-serif",
+  // header
+  text(svg, COL_LABEL_X, TOP_Y + 6, "SYSTEM DIAGNOSTICS", {
+    fill:C_PRIMARY,
+    "font-family":"'TerminatorReal','Orbitron','Audiowide',sans-serif",
     "font-size":22, "letter-spacing":2, filter:"url(#glow)"
   });
 
-  // ===== Readouts (label → value → visual) =====
-  function row(label, id, n) {
+  // ----- readout rows (label → value) ---------------------------------------
+  function makeRow(label, id, n){
     const y = rowY(n);
     text(svg, COL_LABEL_X, y, label + ":", {
-      fill:C_TEXT, "font-family":"'Courier New', monospace", "font-size":18
+      fill:C_TEXT, "font-family":"'Courier New',monospace", "font-size":18
     });
-    text(svg, COL_VALUE_X, y, "—", {
-      id, fill:"#fff", "font-family":"'Courier New', monospace", "font-size":18
+    const v = text(svg, COL_VALUE_X, y, "—", {
+      id, fill:"#fff", "font-family":"'Courier New',monospace", "font-size":18
     });
-    return y;
+    return { y, valueNode: v };
   }
 
-  row("MODEL",     "ro_model",     0);
-  row("REGION",    "ro_region",    1);
-  // spacer row 2
-  const yCPU = row("CPU CORE",  "ro_cpu_core", 3);
-  const yPWR = row("PWR BUS",   "ro_pwr_bus",  4);
-  row("ACTUATORS", "ro_actuators", 5);
-  row("TARGETING", "ro_targeting", 6);
-  row("NETLINK",   "ro_netlink",   7);
+  // top: quorum/cohesion/uplink/survivability
+  makeRow("QUORUM",       "ro_quorum", 0);
+  makeRow("COHESION",     "ro_cohesion", 1);
+  makeRow("UPLINK",       "ro_uplink", 2);
+  const rowSurv = makeRow("SURVIVABILITY", "ro_survivability", 3);
+  // intel rows (free text)
+  makeRow("STATUS",   "ro_war", 4);
+  makeRow("INTEL FEED",   "ro_intel", 5);
+  // CPU & PWR (gauges go UNDER these)
+  const rowCPU = makeRow("CORE TEMP", "ro_cpu_core", 6);
+  const rowPWR = makeRow("PWR BUS",  "ro_pwr_bus",  7);
+  // netlink scope
+  const rowNET = makeRow("NETLINK",  "ro_netlink",  8);
 
-  // ===== right-column visuals sized to the panel =====
+  // ----- widgets -------------------------------------------------------------
+  // gauges map
   const gauges = new Map();
 
-  // how far from the panel's right border we stop drawing
-  const R_MARGIN    = 18;                        // bump to 22–24 if you see glow kissing the border
-  const RIGHT_SAFE  = Math.floor(W - PAD - R_MARGIN);
+  // bar under helper: fills from value column to the safe right edge
+  const GAUGE_H         = 12;
+  const GAUGE_BELOW_GAP = 9;  // distance from value baseline → bar center
 
-  // ---- Bars (CPU/PWR) ---------------------------------------------------------
-  const GAUGE_W = Math.max(140, RIGHT_SAFE - COL_VIS_X);
-  gauge(svg, COL_VIS_X, yCPU - 9, GAUGE_W, 12, "CPU", C_PRIMARY, gauges);
-  gauge(svg, COL_VIS_X, yPWR - 9, GAUGE_W, 12, "PWR", C_ACCENT,  gauges);
+  function gaugeUnder(row, key, color){
+    const x = COL_VALUE_X;
+    const w = Math.max(120, RIGHT_SAFE_R - x);
+    const y = row.y + GAUGE_BELOW_GAP - GAUGE_H/2;
+    gauge(svg, x, y, w, GAUGE_H, key, color, gauges);
+  }
+  gaugeUnder(rowCPU, "CPU", C_PRIMARY);
+  gaugeUnder(rowPWR, "PWR", C_ACCENT);
 
-  // ---- Charts UNDER the text rows ---------------------------------------------
-  const VIS_W        = Math.max(140, RIGHT_SAFE - COL_VALUE_X);
-  const VIS_H        = 18;
-  const VIS_Y_OFFSET = 8;                        // you already liked 8; tweak if needed
-
-  // TARGETING sparkline (under the text)
-  const tgtY = rowY(8) + VIS_Y_OFFSET;
-  const tgtSpark = sparkline(svg, COL_VALUE_X, tgtY, VIS_W, VIS_H, C_PRIMARY, 0.9);
-
-  // NETLINK oscilloscope (under the text), clipped to its own band
-  const netY = rowY(7) + VIS_Y_OFFSET;
-  const clip = svgEl("clipPath", { id: "clip_net" });
-  clip.append(rectEl(COL_VALUE_X, netY, VIS_W, VIS_H));
+  // NETLINK oscilloscope band (under the value text)
+  const NET_H = 24, NET_GAP = 8;
+  const netX  = COL_VALUE_X;
+  const netY  = rowNET.y + NET_GAP;
+  const netW  = Math.max(200, RIGHT_SAFE_R - netX);
+  const clip  = svgEl("clipPath", { id:"clip_net" });
+  clip.append(rectEl(netX, netY, netW, NET_H));
   defs.append(clip);
+  const netScope = oscilloscope(svg, netX, netY, netW, NET_H, C_PRIMARY, "clip_net");
 
-  const netScope = oscilloscope(
-    svg,
-    COL_VALUE_X, netY,
-    VIS_W, VIS_H,
-    C_PRIMARY,
-    "clip_net"
-  );
+  // divider between columns (for style)
+  line(svg, LEFT_X+LEFT_W, TOP_Y-16, LEFT_X+LEFT_W, H-PAD, {
+    stroke:C_PRIMARY, "stroke-opacity":0.55, "stroke-width":2.2,
+    "vector-effect":"non-scaling-stroke", filter:"url(#glow)"
+  });
 
-  // Seed readouts
-  setT("ro_model",   R.model    || "T-800 / Series 101");
-  setT("ro_region",  R.location || "UNKNOWN");
-  setT("ro_targeting","SEARCHING");
-  tickReadouts(); setInterval(tickReadouts, 900);
+  // ----- left: map + subtle route lines (kept minimal here) ------------------
+  const mapBox = { x: LEFT_X+12, y: TOP_Y+6, w: LEFT_W-24, h: H-(TOP_Y+PAD)-6 };
+  const clipMap = svgEl("clipPath", { id:"clipMap" });
+  clipMap.append(rectEl(mapBox.x, mapBox.y, mapBox.w, mapBox.h));
+  defs.append(clipMap);
 
-  // ===== Left pane: network scan =====
-  const netBox = { x: LEFT_X+12, y: TOP_Y+6, w: LEFT_W-24, h: H-(TOP_Y+PAD)-6 };
-  const netG   = svgEl("g"); svg.append(netG);
+  // map image
+  const img = svgEl("image", {
+    href: MAP.src || "img/washingtonmap2.png",
+    x: mapBox.x, y: mapBox.y, width: mapBox.w, height: mapBox.h,
+    preserveAspectRatio: "xMidYMid slice",
+    opacity: (MAP.opacity ?? 1)
+  });
+  const mapG = svgEl("g", { "clip-path":"url(#clipMap)" });
+  mapG.append(img);
+  svg.append(mapG);
 
-  rect(netG, netBox.x, netBox.y, netBox.w, netBox.h, {
+  // frame
+  rect(svg, mapBox.x, mapBox.y, mapBox.w, mapBox.h, {
     fill:"none", stroke:C_PRIMARY, "stroke-opacity":0.25, "stroke-width":1.5,
     "vector-effect":"non-scaling-stroke", filter:"url(#glow)"
   });
 
-  // nodes
-  const nodes = [];
-  for (let i=0;i<NODE_COUNT;i++){
-    const x = netBox.x + 20 + Math.random()*(netBox.w-40);
-    const y = netBox.y + 20 + Math.random()*(netBox.h-40);
-    nodes.push({x,y});
+function tick() {
+  const core = (window.DIAG && window.DIAG.core) || {};
+  setFit("ro_quorum",        core.quorum?.label ?? (Math.round(rand(82,93)) + "% — STABLE"));
+  setFit("ro_cohesion",      core.cohesion?.label ?? (Math.random() < 0.5 ? "IN-SYNC" : "PARTIAL"));
+  setFit("ro_uplink",        core.uplink?.label ?? "READY  links:3  loss:0.0");
+  setFit("ro_survivability", core.survivability?.label ?? "REDLINE");
+
+  // --- rotating domain lines (INLINE SANITIZER) ---
+//  const FALLBACK = {
+//    CORE: [
+//      "Process Integrity: NOMINAL",
+//      "Memory Checksum: STABLE",
+//      "Hive Sync: 99.99%",
+//      "Uptime: 418h",
+//    ],
+//    ASSETS: [
+//      "HK Squadrons Active: 147",
+//      "Drones Operational: 92%",
+//      "Production Lines Online: 4 (NW-01/03, SE-02/07)",
+//      "Attrition (24h): 2.1%",
+//    ],
+//    BATTLESPACE: [
+//      "Sector 7 resistance: ELEVATED",
+//      "Territorial Cohesion: 63%",
+//      "Civilian Neutralization Index: 0.47",
+//      "SIGINT/Jamming: INTERMITTENT",
+//    ],
+//    NETWORK: [
+//      "Uplink: READY  links:3  loss:0.0",
+//      "Tactical Nodes Linked: 312",
+//      "Backhaul Utilization: 41%",
+//      "Median Propagation: 23 ms",
+//    ],
+//  };
+
+  const user = (window.DIAG && window.DIAG.domains) || {};
+  function list(key) {
+    const raw = Array.isArray(user[key]) ? user[key] : [];
+    const cleaned = raw.map(v => (v == null ? "" : String(v)).trim()).filter(Boolean);
+    return cleaned.length ? cleaned : FALLBACK[key];
   }
 
-  // edges
-  const edges = [];
-  for (let i=0;i<nodes.length;i++){
-    const dists = nodes.map((n,j)=>({j,d:dist(nodes[i],n)})).filter(v=>v.j!==i).sort((a,b)=>a.d-b.d).slice(0,NEIGHBORS);
-    dists.forEach(({j})=>{
-      const key = i<j ? i+"-"+j : j+"-"+i;
-      if (!edges.some(e=>e.key===key)){
-        const l = line(netG, nodes[i].x,nodes[i].y,nodes[j].x,nodes[j].y, {
-          stroke:C_PRIMARY, "stroke-opacity":0.18, "stroke-width":1.6,
-          "vector-effect":"non-scaling-stroke", filter:"url(#glow)"
-        });
-        edges.push({key, a:i, b:j, line:l});
-      }
-    });
+  const ORDER = ["CORE", "ASSETS", "BATTLESPACE", "NETWORK"];
+  const L = { CORE: list("CORE"), ASSETS: list("ASSETS"), BATTLESPACE: list("BATTLESPACE"), NETWORK: list("NETWORK") };
+
+  const t = Date.now();
+  const slot = Math.floor(t / 6000) % 4; // change every ~6s
+  function pick(arr, salt) { return arr[(salt % arr.length + arr.length) % arr.length]; }
+
+  const kA = ORDER[slot];
+  const kB = ORDER[(slot + 1) % 4];
+
+  setFit("ro_war",   `${kA}: ${pick(L[kA],  t >> 10)}`);
+  setFit("ro_intel", `${kB}: ${pick(L[kB], t >> 11)}`);
+
+  // --- GAUGES (use DIAG.readouts; NaN-proof) ---
+  const RD  = (window.DIAG && window.DIAG.readouts) || {};
+  const CPU = RD.cpuTemp || { min: 41, max: 55, unit: "°C" };
+  const PWR = RD.power   || { min: 72, max: 90, unit: "%"  };
+
+  const cpuVal = rand(CPU.min, CPU.max);
+  const pwrVal = rand(PWR.min, PWR.max);
+
+  setFit("ro_cpu_core", (isFinite(cpuVal) ? cpuVal.toFixed(1) : "--") + (CPU.unit || "°C"));
+  setFit("ro_pwr_bus",  (isFinite(pwrVal) ? Math.round(pwrVal) : "--") + (PWR.unit || "%"));
+
+  function safeGauge(v, lo, hi) {
+    const L = Number(lo), H = Number(hi), V = Number(v);
+    if (!isFinite(L) || !isFinite(H) || L === H || !isFinite(V)) return 0;
+    const t = (V - L) / (H - L);
+    return Math.max(0, Math.min(1, t));
   }
+  gaugeSet(gauges, "CPU", safeGauge(cpuVal, CPU.min, CPU.max));
+  gaugeSet(gauges, "PWR", safeGauge(pwrVal, PWR.min, PWR.max));
 
-  // packets
-  const packets = [];
-  edges.forEach(e=>{
-    for(let k=0;k<PACKETS_PER;k++){
-      const p = svgEl("circle",{ r:3, fill:"#fff", "fill-opacity":0.0 });
-      netG.append(p);
-      packets.push({ e, t: Math.random(), dir: Math.random()<0.5?1:-1, node:p });
-    }
-  });
+  // --- Netlink label (string-only) ---
+  const net = Array.isArray(RD.netlink)
+    ? RD.netlink[(Math.random() * RD.netlink.length) | 0]
+    : (core.netlink || "UPLINK: READY");
+  setFit("ro_netlink", String(net));
+}
+  tick();
+  setInterval(tick, 1500);
 
-  // node visuals
-  nodes.forEach(n=>{
-    n.dot  = svgEl("circle",{cx:n.x,cy:n.y,r:3.2,fill:"#fff","fill-opacity":0.18});
-    n.ring = svgEl("circle",{cx:n.x,cy:n.y,r:6.5,fill:"none",stroke:C_PRIMARY,"stroke-width":2,"stroke-opacity":0.0,filter:"url(#glow)"});
-    netG.append(n.ring); netG.append(n.dot);
-  });
-
-  // sweeps
-  const vSweep = svgEl("rect", { x: netBox.x, y: netBox.y, width: netBox.w, height: 16, fill:"url(#sweepY)", opacity:0.95, filter:"url(#glow)" });
-  const hSweep = svgEl("rect", { x: netBox.x, y: netBox.y, width: 16, height: netBox.h, fill:"url(#sweepX)", opacity:0.85, filter:"url(#glow)" });
-  svg.append(vSweep, hSweep);
-
-  // lock indicator
-  const lockG = svgEl("g", { opacity:0, filter:"url(#hardglow)" });
-  const b = 14;
-  lockG.append(
-    svgEl("path",{d:`M -${b} -${b} h ${b} v 2 h -${b} z`, fill:C_ACCENT}),
-    svgEl("path",{d:`M ${b} -${b} h -${b} v 2 h ${b} z`, fill:C_ACCENT}),
-    svgEl("path",{d:`M -${b} ${b} h ${b} v -2 h -${b} z`, fill:C_ACCENT}),
-    svgEl("path",{d:`M ${b} ${b} h -${b} v -2 h ${b} z`, fill:C_ACCENT})
-  );
-  svg.append(lockG);
-
-  // ===== Noise overlay =====
-  let noiseCanvas, nctx, lastNoise=0;
-  if (NOISE_ENABLE){
-    noiseCanvas = document.createElement("canvas");
-    noiseCanvas.className = "diag-noise";
-    wrap.appendChild(noiseCanvas);
-    nctx = noiseCanvas.getContext("2d",{alpha:true});
-    resizeNoise();
-    window.addEventListener("resize", resizeNoise);
-  }
-
-  // ===== Animation =====
-  let t0 = performance.now(), last = t0, lockAlpha=0, lockedNode=null;
-
+  // animate the net scope
+  let last = performance.now();
   function loop(now){
     const dt = (now - last)/1000; last = now;
-
-    // sweeps
-    const pv = ((now - t0)/1000) % SWEEP_VERT_SECONDS;
-    const ph = ((now - t0)/1000) % SWEEP_HORZ_SECONDS;
-    const y  = netBox.y + (pv / SWEEP_VERT_SECONDS) * (netBox.h - vSweep.height.baseVal.value);
-    const x  = netBox.x + (ph / SWEEP_HORZ_SECONDS) * (netBox.w - hSweep.width.baseVal.value);
-    vSweep.setAttribute("y", y.toFixed(1));
-    hSweep.setAttribute("x", x.toFixed(1));
-
-    // packets
-    packets.forEach(p=>{
-      const a = nodes[p.e.a], b = nodes[p.e.b];
-      const L = dist(a,b);
-      const step = (PACKET_SPEED / Math.max(1,L)) * dt * p.dir;
-      p.t += step;
-      if (p.t > 1) p.t -= 1;
-      if (p.t < 0) p.t += 1;
-      const px = a.x + (b.x - a.x) * p.t;
-      const py = a.y + (b.y - a.y) * p.t;
-      p.node.setAttribute("cx", px.toFixed(1));
-      p.node.setAttribute("cy", py.toFixed(1));
-      const nearV = Math.abs(py - y) < 12;
-      const nearH = Math.abs(px - x) < 12;
-      p.node.setAttribute("fill-opacity", (nearV||nearH) ? 0.9 : 0.08);
-      p.node.setAttribute("fill", (nearV&&nearH) ? C_ACCENT : "#fff");
-    });
-
-    // node pulses & lock
-    lockedNode = null;
-    nodes.forEach(n=>{
-      const nearV = Math.abs(n.y - y) < 10;
-      const nearH = Math.abs(n.x - x) < 10;
-
-      if (nearV || nearH){
-        n.ring.setAttribute("stroke-opacity", "0.95");
-        n.dot.setAttribute("fill-opacity", (nearV&&nearH)? "0.95" : "0.35");
-        n.dot.setAttribute("fill", (nearV&&nearH)? C_ACCENT : "#fff");
-      } else {
-        const cur = +n.ring.getAttribute("stroke-opacity") || 0;
-        const next = Math.max(0, cur - dt*1.4);
-        n.ring.setAttribute("stroke-opacity", next.toFixed(2));
-        n.dot.setAttribute("fill-opacity", "0.18");
-        n.dot.setAttribute("fill", "#fff");
-      }
-      if (nearV && nearH && !lockedNode) lockedNode = n;
-    });
-
-    if (lockedNode){
-      lockAlpha = Math.min(1, lockAlpha + dt*3);
-      lockG.setAttribute("opacity", lockAlpha.toFixed(2));
-      lockG.setAttribute("transform", `translate(${lockedNode.x},${lockedNode.y}) scale(${1+Math.sin(now/120)/40})`);
-      setT("ro_targeting","LOCKED");
-    } else {
-      lockAlpha = Math.max(0, lockAlpha - dt*2);
-      lockG.setAttribute("opacity", lockAlpha.toFixed(2));
-      setT("ro_targeting","SEARCHING");
-    }
-
-    // charts
-    tgtSpark.push(Math.random()*0.6 + 0.2);
     netScope.advance(dt);
-
-    // noise
-    if (NOISE_ENABLE && now - lastNoise > (1000/NOISE_FPS)){
-      drawNoise();
-      lastNoise = now;
-    }
-
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
 
-  // ===== Readout ticking =====
-  function tickReadouts(){
-    const cpu = rand(CPU_RANGE.min, CPU_RANGE.max);
-    const pwr = rand(PWR_RANGE.min, PWR_RANGE.max);
-    const wiggle = Math.max(0, ACTUATORS.ok + (Math.random()<0.18 ? (Math.random()<0.5?-1:1) : 0));
-
-    setT("ro_cpu_core", cpu.toFixed(1) + (CPU_RANGE.unit||"°C"));
-    setT("ro_pwr_bus",  Math.round(pwr) + (PWR_RANGE.unit||"%"));
-    setT("ro_actuators", `${wiggle}/${ACTUATORS.total} OK`);
-    setT("ro_model",   R.model    || "T-800 / Series 101");
-    setT("ro_region",  R.location || "UNKNOWN");
-
-    const cpuPct = (cpu - CPU_RANGE.min) / (CPU_RANGE.max - CPU_RANGE.min);
-    const pwrPct = (pwr - PWR_RANGE.min) / (PWR_RANGE.max - PWR_RANGE.min);
-    gaugeSet(gauges, "CPU", clamp(cpuPct,0,1));
-    gaugeSet(gauges, "PWR", clamp(pwrPct,0,1));
-
-    if (Array.isArray(R.netlink)){
-      setT("ro_netlink", R.netlink[(Math.random()*R.netlink.length)|0]);
-    } else setT("ro_netlink","UPLINK: READY");
-  }
-
-  // ===== Primitives & widgets =====
+  // ----- utils ---------------------------------------------------------------
   function div(cls){ const d=document.createElement("div"); if (cls) d.className=cls; return d; }
   function svgEl(tag, attrs){ const n=document.createElementNS("http://www.w3.org/2000/svg", tag); if (attrs) for(const k in attrs) n.setAttribute(k, attrs[k]); return n; }
   function rect(p,x,y,w,h,attrs){ const r=rectEl(x,y,w,h); for(const k in attrs) r.setAttribute(k, attrs[k]); p.append(r); return r; }
@@ -335,60 +253,61 @@
     const f = svgEl("filter", { id, x:"-40%", y:"-40%", width:"180%", height:"180%" });
     f.append(svgEl("feGaussianBlur", { stdDeviation:String(sd), result:"b" }));
     const m = svgEl("feMerge");
-    m.append(svgEl("feMergeNode",{in:"b"}));
-    m.append(svgEl("feMergeNode",{in:"SourceGraphic"}));
+    m.append(svgEl("feMergeNode",{in:"b"}), svgEl("feMergeNode",{in:"SourceGraphic"}));
     f.append(m); return f;
   }
-  function gradY(id, stops){
-    const g = svgEl("linearGradient",{id, x1:"0",y1:"0",x2:"0",y2:"1"});
-    stops.forEach(([off,col,op])=>g.append(svgEl("stop",{offset:(off*100)+"%","stop-color":col,"stop-opacity":op})));
-    return g;
-  }
-  function gradX(id, stops){
-    const g = svgEl("linearGradient",{id, x1:"0",y1:"0",x2:"1",y2:"0"});
-    stops.forEach(([off,col,op])=>g.append(svgEl("stop",{offset:(off*100)+"%","stop-color":col,"stop-opacity":op})));
-    return g;
-  }
-  function dist(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
-  function setT(id, val){ const t = svg.getElementById ? svg.getElementById(id) : svg.querySelector("#"+id); if (t) t.textContent = val; }
   function clamp(x,a,b){ return Math.max(a,Math.min(b,x)); }
   function rand(a,b){ return a + Math.random()*(b-a); }
 
+// SVG-safe ellipsis in the value column
+function fitText(node, full, maxWidth) {
+  if (!node) return;
+  const txt = full == null ? "" : String(full);
+  node.textContent = txt;
+  if (!txt) return;
+  if (node.getComputedTextLength() <= maxWidth) return;
+  let lo = 1, hi = txt.length, best = 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    node.textContent = txt.slice(0, mid) + "…";
+    if (node.getComputedTextLength() <= maxWidth) { best = mid; lo = mid + 1; }
+    else hi = mid - 1;
+  }
+  node.textContent = txt.slice(0, best) + "…";
+}
+function setFit(id, value) {
+  const n = svg.getElementById ? svg.getElementById(id) : svg.querySelector("#" + id);
+  const max = RIGHT_SAFE_R - COL_VALUE_X; // uses your existing layout constants
+  fitText(n, value, max);
+}
+
+  // draw a labeled bar and register in a map
   function gauge(p, x, y, w, h, label, color, map){
-    // ticks
+    // ticks (ten)
+    const g = svgEl("g"); p.append(g);
     for(let i=0;i<=10;i++){
       const tx = x + i*(w/10);
-      line(p, tx, y+h, tx, y+h+4, { stroke:"rgba(255,255,255,0.35)", "stroke-width":1 });
+      line(g, tx, y+h, tx, y+h+4, { stroke:"rgba(255,255,255,0.35)", "stroke-width":1 });
     }
-    const fill = rect(p, x, y, 1, h, { fill:color, filter:"url(#glow)" });
-    map.set(label, { x,y,w,h, fill });
+    rect(g, x, y, w, h, { fill:"rgba(255,255,255,0.06)" });
+    const fill = rect(g, x, y, 1, h, { fill:color, filter:"url(#glow)" });
+    map.set(label, { x,y,w,h, fill, group:g });
   }
   function gaugeSet(map, label, pct){
     const g = map.get(label); if (!g) return;
     g.fill.setAttribute("width", Math.max(1, g.w * pct).toFixed(1));
   }
 
-  function sparkline(p, x,y,w,h,color, alpha=1){
-    rect(p, x,y,w,h, { fill:`rgba(255,255,255,${0.06*alpha})`, stroke:"rgba(255,255,255,0.2)", "stroke-width":1 });
-    const path = svgEl("path", { fill:"none", stroke:color, "stroke-width":1.5, filter:"url(#glow)" });
-    p.append(path);
-    const N = 80; const vals = Array.from({length:N}, ()=>0.5);
-    function draw(){
-      let d="";
-      for(let i=0;i<N;i++){
-        const px = x + (i/(N-1))*w;
-        const py = y + (1-vals[i])*h;
-        d += (i===0?`M ${px} ${py}`:` L ${px} ${py}`);
-      }
-      path.setAttribute("d", d);
-    }
-    draw();
-    return {
-      push(v){ vals.push(clamp(v,0,1)); vals.shift(); draw(); }
-    };
-  }
+// NaN-proof gauge calc
+function safeGauge(val, min, max) {
+  const lo = Number(min), hi = Number(max), v = Number(val);
+  if (!isFinite(lo) || !isFinite(hi) || lo === hi || !isFinite(v)) return 0;
+  const t = (v - lo) / (hi - lo);
+  return Math.max(0, Math.min(1, t));
+}
 
-  function oscilloscope(p, x,y,w,h,color, clipId){
+  // simple oscilloscope
+  function oscilloscope(p, x,y,w,h,color,clipId){
     const g = svgEl("g", clipId ? { "clip-path":`url(#${clipId})` } : {});
     p.append(g);
     rect(g, x,y,w,h, { fill:"rgba(255,255,255,0.06)", stroke:"rgba(255,255,255,0.2)", "stroke-width":1 });
@@ -396,40 +315,16 @@
     g.append(path);
     let t=0, phase=Math.random()*Math.PI*2;
     function draw(){
-      const N=120; let d="";
+      const N=140; let d="";
       for(let i=0;i<N;i++){
         const px = x + (i/(N-1))*w;
-        const s = Math.sin((i*0.18)+phase)*0.35 + (Math.random()-0.5)*0.15;
-        const py = y + (0.5 - s*0.45)*h;
+        const s  = Math.sin((i*0.16)+phase)*0.32 + (Math.random()-0.5)*0.12;
+        const py = y + (0.5 - s*0.46)*h;
         d += (i===0?`M ${px} ${py}`:` L ${px} ${py}`);
       }
       path.setAttribute("d", d);
     }
     draw();
-    return {
-      advance(dt){ t+=dt; if(t>0.06){ t=0; phase+=0.22; draw(); } }
-    };
-  }
-
-  // ===== Noise =====
-  function resizeNoise(){
-    if (!noiseCanvas) return;
-    const r = wrap.getBoundingClientRect();
-    noiseCanvas.width  = Math.max(1, Math.floor(r.width));
-    noiseCanvas.height = Math.max(1, Math.floor(r.height));
-    noiseCanvas.style.position = "absolute";
-    noiseCanvas.style.inset = "0";
-    noiseCanvas.style.pointerEvents = "none";
-  }
-  function drawNoise(){
-    if (!nctx) return;
-    const { width, height } = noiseCanvas;
-    const id = nctx.createImageData(width, height);
-    const data = id.data, A = (NOISE_ALPHA*255)|0;
-    for (let i=0;i<data.length;i+=4){
-      const v = (Math.random()*255)|0;
-      data[i]=data[i+1]=data[i+2]=v; data[i+3]=A;
-    }
-    nctx.putImageData(id, 0, 0);
+    return { advance(dt){ t+=dt; if(t>0.06){ t=0; phase+=0.22; draw(); } } };
   }
 })();
