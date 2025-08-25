@@ -1,23 +1,21 @@
 // config.js
 
 var Config = {};
+window.UI = window.UI || {};
 
 window.motdArray = [
   "Welcome to Terminator Roleplay!",
-  "Join the community at www.thefuturewar.net!"
+  "Join the community at www.thefuturewar.net!",
+  "Judgment Day: July 25th, 2004. Skynet becomes self-aware."
 ];
 
-window.UI = window.UI || {};
 window.UI.scanTextClass = "scan-text";
-
 // Top-right header text
 window.UI.scanText = [
   { tag: "h1", text: "The Future War" },
   { tag: "h2", text: "First Contact" },
   { tag: "h4", text: "Terminator Serious Roleplay" },
 ];
-
-window.UI = window.UI || {};
 
 // Which array to type and where to render it
 window.UI.cursorTyperTarget = {
@@ -39,29 +37,35 @@ window.UI.cursorTyper = {
 
 // ===== T-800 DIAGNOSTICS PANEL CONFIG ======================================
 window.DIAG = {
-  theme: {
-    primary: "#37ddfa",     // cyan grid/accents
-    accent:  "#ff3b3b",     // eye glow
-    text:    "#cfe7ff",     // readout text
-    grid:    "rgba(255,255,255,0.12)" // grid/rings
-  },
-  scan: {
-    speedMs: 2600,   // full sweep duration
-    thickness: 14,   // px
-    alpha: 0.25      // bar opacity
-  },
+  theme:   { primary:"#37ddfa", accent:"#ff3b3b", text:"#cfe7ff" },
+  sweepV:  15,          // seconds for vertical sweep
+  sweepH:  30,         // seconds for horizontal sweep
+  nodeCount: 35,       // 10–30 reasonable
+  neighbors: 3,        // edges per node (1–5)
+  packetsPer: 2,       // 0–4
+  packetSpeed: 30,     // px/s along edge
+  noise: true,         // canvas static overlay
+  noiseFps: 24,
+  noiseAlpha: 0.06,
+
   readouts: {
     model: "T-800 / Series 101",
     location: "Olympia, WA",
-    cpuTemp: { min: 41, max: 55, unit: "°C" },
-    power:   { min: 74, max: 89, unit: "%" },
+    cpuTemp: { min: 42, max: 56, unit:"°C" },
+    power:   { min: 74, max: 88, unit:"%" },
     actuators: { ok: 28, total: 32 },
-    targeting: ["LOCKED", "TRACKING", "IDLE"],
-    netlink:   ["CIPHER/OK", "UPLINK: READY", "UPLINK: SECURE"]
+    netlink: ["UPLINK: READY", "UPLINK: SYNCING", "UPLINK: SECURE", "UPLINK: RETRY…"]
   }
 };
 
+window.DIAG.mapBg = {
+  src: "img/washingtonmap2_cropped.png", // your cropped PNG/JPG
+  opacity: 0.25,                         // dim it
+  tint: "rgba(20,230,255,0.08)",         // light cyan wash
+  blur: 0                                // 0..2 for subtle blur
+};
 
+// alt for console/cursortyper
 window.rumors = [
     "Judgment Day: July 25th, 2004. Skynet becomes self-aware.",
     "Was talking to my brother over the radio the other day. He said his boys saw a battleship floating in the air. It passed by them on it's way east. The guy's gone nuts, I'm telling ya.",
@@ -84,6 +88,7 @@ window.rumors = [
    ];
 
 
+// vars for the DOS terminal \\
 const registers = [
   '0x0040A1FC', '0x00AB12FF', '0x0010F9E1', '0x000AFEDC', '0x00BB78A3', 
   '0x00458FF2', '0x003B90C1', '0x002ACDED', '0x00FCD8F3', '0x00139FE7',

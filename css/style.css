@@ -41,7 +41,7 @@ body {
 /* Optional DOS VGA recreation (include file if you have it) */
 @font-face {
   font-family: "Perfect DOS VGA 437";
-  src: url('../fonts/PerfectDOSVGA437.woff2') format('woff2');
+  src: url('../fonts/Perfect\ DOS\ VGA\ 437.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -94,6 +94,7 @@ body {
   text-transform: uppercase;
   text-align: right;
 }
+
 h1.scan-text { font-size: clamp(1.6rem, 2.5vw, 3rem); letter-spacing: 0.12em; }
 h2.scan-text { font-size: clamp(1.2rem, 1.8vw, 2.2rem); color: #37ddfa; text-shadow: 0 0 5px #00ddff; }
 h3.scan-text { font-size: clamp(1.0rem, 1.3vw, 1.6rem); color: #3ccde7; text-shadow: 0 0 5px #00ddff; }
@@ -116,51 +117,34 @@ h4.scan-text { font-size: clamp(0.8rem, 1.0vw, 1.2rem); color: #3ccde7; text-sha
 /* Assumes you already use --feed-w for the left DOS column width.     */
 /* This block replaces the old map/bracket styles.                      */
 
-/* Bracket lives in the right pane (respects the left feed width) */
+/* Bracket = right pane container */
 .bracket-container{
   position: absolute;
+
   top: 50vh;
-  left: calc(1vw + var(--feed-w) + 2vw);
+  left: calc(1vw + var(--feed-w, 22vw) + 2vw);
   right: 1vw;
-  height: 45vh;
   transform: translateY(-50%);
-  border: none;
+
+  aspect-ratio: 1200 / 560;
+  height: 46vh;       
+  border: 2px solid #fff;
+  border-radius: 10px;
   overflow: hidden;
-  z-index: 2;
-
-  /* center whatever is inside (our SVG panel) */
+  box-shadow: 0 0 1vh rgba(255,255,255,0.35);
   display: grid;
-  place-items: center;
-
-  /* subtle outer glow, optional */
-  box-shadow: var(--diag-shadow);
+  place-items: stretch; 
 }
 
-/* The diagnostics wrapper (we animate this, not the SVG internals) */
+/* The SVG wrapper must not add padding/margins */
 .diag-container{
   width: 100%;
   height: 100%;
-  display: grid;
-  place-items: center;
-
-  /* small “mounted in” scale; becomes 1.0 when .ready is added */
-  transform: scale(0.94);
-  transform-origin: center;
-  transition: transform var(--diag-enter-ms) ease-out;
-}
-.bracket-container.ready .diag-container{
-  transform: scale(1);
+  padding: 0;               /* ensure no extra inset */
 }
 
-/* The responsive SVG */
-.diag-svg{
-  width: 100%;
-  height: 100%;
-  display: block;
-  background: var(--diag-bg);              /* panel backdrop */
-  user-select: none;
-  -webkit-user-select: none;
-}
+/* SVG should stretch to container */
+.diag-svg{ width: 100%; height: 100%; display: block; }
 
 /* Keep the holo scanlines overlay clickable-off and on top */
 .holo-scanlines{
@@ -216,9 +200,6 @@ h4.scan-text { font-size: clamp(0.8rem, 1.0vw, 1.2rem); color: #3ccde7; text-sha
   opacity: 0.18;                 /* softer than before */
   animation: scanline-animation 2s linear infinite;
 }
-
-/* Shift the map so it doesn’t sit under the left column */
-.bracket-container { left: calc(1vw + var(--feed-w) + 2vw); }
 
 /* DOS screen lives INSIDE the left container */
 #dos-screen.crt {
@@ -320,8 +301,6 @@ h4.scan-text { font-size: clamp(0.8rem, 1.0vw, 1.2rem); color: #3ccde7; text-sha
 /* Console ticker                                         */
 /* ========================================================================== */
 
-:root { --feed-w: 24vw; } /* same var you used for the left column width */
-
 /* Console: pinned to the bottom of the RIGHT region (i.e., to the right of the boot column) */
 #console {
   position: absolute;
@@ -350,21 +329,10 @@ h4.scan-text { font-size: clamp(0.8rem, 1.0vw, 1.2rem); color: #3ccde7; text-sha
   z-index: 8;
 }
 
-/* one-line ticker behavior */
-#console #console-text {
-  display: block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: clamp(12px, 0.95vw, 16px);
-  line-height: 1.1;
-  letter-spacing: 0.02em;
-  text-shadow: 0 0 4px rgba(0,255,128,0.5);
-}
 /* lay out prompt, text, cursor on one line */
 #console {
-  display: flex;
-  align-items: baseline;   /* keeps the > and text aligned */
+  display: block;
+  text-align: left;   /* keeps the > and text aligned */
   gap: 0.5ch;
 }
 
@@ -377,6 +345,8 @@ h4.scan-text { font-size: clamp(0.8rem, 1.0vw, 1.2rem); color: #3ccde7; text-sha
 #console #console-text {
   flex: 1 1 auto;          /* take the remaining width */
   min-width: 0;            /* critical for ellipsis in flex */
+  max-width: none;
+  width: auto !important;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -387,9 +357,8 @@ h4.scan-text { font-size: clamp(0.8rem, 1.0vw, 1.2rem); color: #3ccde7; text-sha
 }
 
 #cursor {
-  flex: 0 0 auto;
-  width: 0.6ch;
-  margin-left: 0.2ch;
+  width: auto;
+  margin-left: 0.25ch;
   font-weight: bold;
   color: #00ff00;
   animation: blink 1s infinite;
@@ -424,3 +393,16 @@ h4.scan-text { font-size: clamp(0.8rem, 1.0vw, 1.2rem); color: #3ccde7; text-sha
   50% { background-position: 100% 25%; background-size: 160%; }
   100% { background-position: 0% 50%; background-size: 140%; }
 }
+
+/* === Skynet Diagnostics – container helpers === */
+.diag-wrap{position:relative;width:100%;height:100%;}
+.diag-svg{display:block;width:100%;height:100%;}
+.diag-noise{position:absolute;inset:0;pointer-events:none;opacity:.08;mix-blend-mode:screen}
+
+/* optional: crisper mono text inside the panel */
+.diag-mono{font-family:'Courier New',monospace}
+
+/* tiny accessory gauges */
+.diag-gauge-bg{fill:rgba(255,255,255,.08)}
+.diag-gauge-fg{fill:#37ddfa}
+.diag-gauge-tick{stroke:rgba(255,255,255,.25);stroke-width:1}

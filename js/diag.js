@@ -1,8 +1,9 @@
-// js/diag.js — balanced layout + stronger contrast (fixed)
+// Skynet System Diagnostics (aligned grid layout)
+// Vanilla JS + SVG + tiny canvas noise overlay
 (function () {
-  const CFG = window.DIAG || {};
+  // ===== Config =====
+  const CFG   = window.DIAG || {};
   const theme = CFG.theme || {};
-  const SCAN  = CFG.scan  || {};
   const R     = CFG.readouts || {};
 
   const C_PRIMARY = theme.primary || "#37ddfa";
@@ -10,201 +11,425 @@
   const C_TEXT    = theme.text    || "#cfe7ff";
   const C_GRID    = theme.grid    || "rgba(255,255,255,0.045)";
 
-  const SPEED = Math.max(600, +SCAN.speedMs || 2600);
-  const BAR_H = Math.max(6, +SCAN.thickness || 16);
-  const BAR_A = Math.max(0, Math.min(1, +SCAN.alpha || 0.38));
+  const SWEEP_VERT_SECONDS = CFG.sweepV ?? 6;
+  const SWEEP_HORZ_SECONDS = CFG.sweepH ?? 9;
 
+  const NODE_COUNT   = Math.max(10, Math.min(30, CFG.nodeCount ?? 18));
+  const NEIGHBORS    = Math.max(1,  Math.min(5,  CFG.neighbors  ?? 3));
+  const PACKETS_PER  = Math.max(0,  Math.min(4,  CFG.packetsPer ?? 2));
+  const PACKET_SPEED = CFG.packetSpeed ?? 70;
+
+  const NOISE_ENABLE = CFG.noise !== false;
+  const NOISE_FPS    = CFG.noiseFps ?? 24;
+  const NOISE_ALPHA  = CFG.noiseAlpha ?? 0.06;
+
+  const CPU_RANGE = R.cpuTemp || { min:41, max:55, unit:"°C" };
+  const PWR_RANGE = R.power   || { min:74, max:89, unit:"%"  };
+  const ACTUATORS = R.actuators || { ok: 28, total: 32 };
+
+  // ===== Mount =====
   const root = document.getElementById("diag-root");
   if (!root) return;
+  root.innerHTML = "";
 
-  const svg = mk("svg", {
-    class: "diag-svg",
-    viewBox: "0 0 1200 560",
-    preserveAspectRatio: "xMidYMid meet"
-  });
+  const wrap = div("diag-wrap");
+  root.appendChild(wrap);
 
-  // --- defs ------------------------------------------------------------------
-  const defs = mk("defs");
+  // ===== SVG root =====
+  const W = 1200, H = 560;
+  const svg = svgEl("svg", { viewBox:`0 0 ${W} ${H}`, class:"diag-svg", preserveAspectRatio:"xMidYMid meet" });
+  wrap.appendChild(svg);
+
+  // ===== defs =====
+  const defs = svgEl("defs");
   defs.append(
-    mk("filter", { id:"glow", x:"-30%", y:"-30%", width:"160%", height:"160%" },
-      mk("feGaussianBlur", { stdDeviation:"2.2", result:"b" }),
-      mk("feMerge", {}, mk("feMergeNode", { in:"b" }), mk("feMergeNode", { in:"SourceGraphic" }))
-    ),
-    mk("filter", { id:"eyeglow", x:"-80%", y:"-80%", width:"260%", height:"260%" },
-      mk("feGaussianBlur", { stdDeviation:"4.2", result:"b" }),
-      mk("feMerge", {}, mk("feMergeNode", { in:"b" }), mk("feMergeNode", { in:"SourceGraphic" }))
-    ),
-    mk("linearGradient", { id:"scanGrad", x1:"0", y1:"0", x2:"0", y2:"1" },
-      mk("stop", { offset:"0%",  "stop-color": C_PRIMARY, "stop-opacity": 0 }),
-      mk("stop", { offset:"50%", "stop-color": C_PRIMARY, "stop-opacity": BAR_A }),
-      mk("stop", { offset:"100%","stop-color": C_PRIMARY, "stop-opacity": 0 })
-    )
+    glow("glow", 2.2),
+    glow("hardglow", 3.6),
+    gradY("sweepY", [[0, C_PRIMARY, 0], [0.5, C_PRIMARY, .55], [1, C_PRIMARY, 0]]),
+    gradX("sweepX", [[0, C_PRIMARY, 0], [0.5, C_PRIMARY, .5], [1, C_PRIMARY, 0]])
   );
   svg.append(defs);
 
-  // --- panel background FIRST (no inner stroke) ------------------------------
-  svg.appendChild(
-    mk("rect", {
-      x: 10, y: 10, width: 1180, height: 540, rx: 12, ry: 12,
-      fill: "rgba(0,0,0,0.58)",   // tweak 0.48–0.58 to taste
-      stroke: "none"
-    })
-  );
+  // ===== Backdrop + grid =====
+  rect(svg, 0,0,W,H, { fill:"rgba(0,0,0,0.58)" });
+  grid(svg, W, H, 20, C_GRID);
 
-  // --- soft grid ON TOP of the panel -----------------------------------------
-  for (let x = 20; x <= 1180; x += 20) {
-    svg.append(mk("line", { x1:x, y1:10, x2:x, y2:550, stroke:C_GRID, "stroke-width":1 }));
-  }
-  for (let y = 10; y <= 550; y += 20) {
-    svg.append(mk("line", { x1:20, y1:y, x2:1180, y2:y, stroke:C_GRID, "stroke-width":1 }));
-  }
-
-  // layout geometry (two columns)
-  const PAD = 40;
+  // ===== Layout anchors =====
+  const PAD = 48;
   const LEFT_X = PAD;
-  const LEFT_W = 560;
-  const RIGHT_X = LEFT_X + LEFT_W + 40;
-  const TOP_Y  = 36;
+  const LEFT_W = 540;
+  const RIGHT_X = LEFT_X + LEFT_W + 56;
+  const TOP_Y  = 38;
 
-  // vertical divider line
-  svg.append(mk("line", {
-    x1: LEFT_X + LEFT_W, y1: TOP_Y - 16,
-    x2: LEFT_X + LEFT_W, y2: 520,
-    stroke: C_PRIMARY, "stroke-opacity": 0.55,
-    "stroke-width": 2.4, "vector-effect":"non-scaling-stroke", filter:"url(#glow)"
-  }));
+  // Right column grid
+  const COL_LABEL_X = RIGHT_X;        // "MODEL:", "CPU CORE:", etc
+  const COL_VALUE_X = RIGHT_X + 170;  // value text
+  const COL_VIS_X   = RIGHT_X + 360;  // bars/scope start
+  const BASE_Y      = TOP_Y + 46;     // first baseline
+  const ROW         = 28;             // row height
 
-  // --- left column: skull schematic -----------------------------------------
-  const strokeAttrs = {
-    fill: "none",
-    stroke: C_PRIMARY,
-    "stroke-width": 4.2,               // was 3.2
-    "stroke-opacity": 0.95,
-    "vector-effect": "non-scaling-stroke",
-    filter: "url(#glow)",
-    "stroke-linejoin": "round",
-    "stroke-linecap": "round"
-  };
+  const rowY = (n) => BASE_Y + n*ROW;
 
-  const skull = mk("g", { transform:`translate(${LEFT_X+8},${TOP_Y})` });
-  skull.append(mk("path", {
-    d: "M140,40 C220,20 320,40 360,120 C380,150 380,210 360,240 C320,300 200,320 140,300 C100,288 60,250 50,210 C30,140 60,70 140,40 Z",
-    fill: hexA(C_PRIMARY, 0.10),  // was 0.06
-    stroke: "none"
-  }));
-
-  skull.append(mk("path", {
-  d: "M140,40 C220,20 320,40 360,120 C380,150 380,210 360,240 C320,300 200,320 140,300 C100,288 60,250 50,210 C30,140 60,70 140,40 Z",
-  fill: "none",
-  stroke: "#ffffff",
-  "stroke-opacity": 0.08,
-  "stroke-width": 1.6,
-  "vector-effect": "non-scaling-stroke"
-}));
-  skull.append(
-    mk("path", { ...strokeAttrs, d:"M140,40 C220,20 320,40 360,120 C380,150 380,210 360,240 C320,300 200,320 140,300 C100,288 60,250 50,210 C30,140 60,70 140,40 Z" }),
-    mk("path", { ...strokeAttrs, d:"M120,290 L340,290 C360,290 360,310 340,320 L180,330 C150,332 130,320 120,300 Z" }),
-    mk("line", { ...strokeAttrs, x1:210,y1:215,x2:300,y2:260 }),
-    mk("line", { ...strokeAttrs, x1:210,y1:215,x2:130,y2:260 }),
-    mk("rect", { ...strokeAttrs, x:190,y:330,width:16,height:60 }),
-    mk("rect", { ...strokeAttrs, x:220,y:330,width:16,height:60 }),
-    mk("rect", { ...strokeAttrs, x:250,y:330,width:16,height:60 }),
-    mk("circle", { cx:220, cy:180, r:18, fill:C_ACCENT, filter:"url(#eyeglow)" }),
-    mk("circle", { cx:280, cy:180, r:18, fill:C_ACCENT, filter:"url(#eyeglow)" })
-  );
-  svg.append(skull);
-
-  // scan bar
-  const scanBar = mk("rect", {
-    x: LEFT_X + 8, y: TOP_Y + 6, width: LEFT_W - 56, height: BAR_H,
-    fill: "url(#scanGrad)", opacity: 1, filter:"url(#glow)"
+  // Divider between left/right panes
+  line(svg, LEFT_X+LEFT_W, TOP_Y-16, LEFT_X+LEFT_W, H-PAD, {
+    stroke:C_PRIMARY, "stroke-opacity":0.55, "stroke-width":2.4,
+    filter:"url(#glow)", "vector-effect":"non-scaling-stroke"
   });
-  svg.append(scanBar);
 
-  // --- right column: header + readouts --------------------------------------
-  const HDR_X = RIGHT_X;
-  const HDR_Y = TOP_Y + 8;
-  svg.append(mk("text", {
-    x: HDR_X, y: HDR_Y,
-    fill: C_PRIMARY,
-    "font-family": "'TerminatorReal','Orbitron','Audiowide',sans-serif",
-    "font-size": 24,
-    "letter-spacing": 2,
-    "text-anchor": "start",
-    filter: "url(#glow)"
-  }, "T-800 DIAGNOSTIC INTERFACE"));
+  // ===== Header =====
+  text(svg, COL_LABEL_X, TOP_Y+6, "SYSTEM DIAGNOSTICS", {
+    fill:C_PRIMARY, "font-family":"'TerminatorReal','Orbitron','Audiowide',sans-serif",
+    "font-size":22, "letter-spacing":2, filter:"url(#glow)"
+  });
 
-  const RX = RIGHT_X;
-  const RY = HDR_Y + 40;
-  const ROW = 28;
-
-  function readout(y, label, id) {
-    svg.append(mk("text", {
-      x: RX, y, fill: C_TEXT, "font-family":"'Courier New',monospace", "font-size": 18
-    }, label + ":"));
-    svg.append(mk("text", {
-      id, x: RX + 200, y, fill: "#ffffff",
-      "font-family":"'Courier New',monospace", "font-size": 18
-    }, "—"));
+  // ===== Readouts (label → value → visual) =====
+  function row(label, id, n) {
+    const y = rowY(n);
+    text(svg, COL_LABEL_X, y, label + ":", {
+      fill:C_TEXT, "font-family":"'Courier New', monospace", "font-size":18
+    });
+    text(svg, COL_VALUE_X, y, "—", {
+      id, fill:"#fff", "font-family":"'Courier New', monospace", "font-size":18
+    });
+    return y;
   }
 
-  readout(RY + ROW*0, "MODEL",     "ro_model");
-  readout(RY + ROW*1, "REGION",    "ro_region");
-  readout(RY + ROW*3, "CPU CORE",  "ro_cpu_core");
-  readout(RY + ROW*4, "PWR BUS",   "ro_pwr_bus");
-  readout(RY + ROW*5, "ACTUATORS", "ro_actuators");
-  readout(RY + ROW*6, "TARGETING", "ro_targeting");
-  readout(RY + ROW*7, "NETLINK",   "ro_netlink");
+  row("MODEL",     "ro_model",     0);
+  row("REGION",    "ro_region",    1);
+  // spacer row 2
+  const yCPU = row("CPU CORE",  "ro_cpu_core", 3);
+  const yPWR = row("PWR BUS",   "ro_pwr_bus",  4);
+  row("ACTUATORS", "ro_actuators", 5);
+  row("TARGETING", "ro_targeting", 6);
+  row("NETLINK",   "ro_netlink",   7);
 
-  root.append(svg);
+  // ===== right-column visuals sized to the panel =====
+  const gauges = new Map();
 
-  // seed + animate
-  set("ro_model",   R.model    || "T-800 / Series 101");
-  set("ro_region",  R.location || "UNKNOWN");
-  updateDynamics();
-  setInterval(updateDynamics, 900);
+  // how far from the panel's right border we stop drawing
+  const R_MARGIN    = 18;                        // bump to 22–24 if you see glow kissing the border
+  const RIGHT_SAFE  = Math.floor(W - PAD - R_MARGIN);
 
-  let t0 = performance.now();
-  function loop(now) {
-    const top = TOP_Y + 6, bottom = 480 - BAR_H;
-    const pct = ((now - t0) % SPEED) / SPEED;
-    const y = top + pct * (bottom - top);
-    scanBar.setAttribute("y", y.toFixed(2));
+  // ---- Bars (CPU/PWR) ---------------------------------------------------------
+  const GAUGE_W = Math.max(140, RIGHT_SAFE - COL_VIS_X);
+  gauge(svg, COL_VIS_X, yCPU - 9, GAUGE_W, 12, "CPU", C_PRIMARY, gauges);
+  gauge(svg, COL_VIS_X, yPWR - 9, GAUGE_W, 12, "PWR", C_ACCENT,  gauges);
+
+  // ---- Charts UNDER the text rows ---------------------------------------------
+  const VIS_W        = Math.max(140, RIGHT_SAFE - COL_VALUE_X);
+  const VIS_H        = 18;
+  const VIS_Y_OFFSET = 8;                        // you already liked 8; tweak if needed
+
+  // TARGETING sparkline (under the text)
+  const tgtY = rowY(8) + VIS_Y_OFFSET;
+  const tgtSpark = sparkline(svg, COL_VALUE_X, tgtY, VIS_W, VIS_H, C_PRIMARY, 0.9);
+
+  // NETLINK oscilloscope (under the text), clipped to its own band
+  const netY = rowY(7) + VIS_Y_OFFSET;
+  const clip = svgEl("clipPath", { id: "clip_net" });
+  clip.append(rectEl(COL_VALUE_X, netY, VIS_W, VIS_H));
+  defs.append(clip);
+
+  const netScope = oscilloscope(
+    svg,
+    COL_VALUE_X, netY,
+    VIS_W, VIS_H,
+    C_PRIMARY,
+    "clip_net"
+  );
+
+  // Seed readouts
+  setT("ro_model",   R.model    || "T-800 / Series 101");
+  setT("ro_region",  R.location || "UNKNOWN");
+  setT("ro_targeting","SEARCHING");
+  tickReadouts(); setInterval(tickReadouts, 900);
+
+  // ===== Left pane: network scan =====
+  const netBox = { x: LEFT_X+12, y: TOP_Y+6, w: LEFT_W-24, h: H-(TOP_Y+PAD)-6 };
+  const netG   = svgEl("g"); svg.append(netG);
+
+  rect(netG, netBox.x, netBox.y, netBox.w, netBox.h, {
+    fill:"none", stroke:C_PRIMARY, "stroke-opacity":0.25, "stroke-width":1.5,
+    "vector-effect":"non-scaling-stroke", filter:"url(#glow)"
+  });
+
+  // nodes
+  const nodes = [];
+  for (let i=0;i<NODE_COUNT;i++){
+    const x = netBox.x + 20 + Math.random()*(netBox.w-40);
+    const y = netBox.y + 20 + Math.random()*(netBox.h-40);
+    nodes.push({x,y});
+  }
+
+  // edges
+  const edges = [];
+  for (let i=0;i<nodes.length;i++){
+    const dists = nodes.map((n,j)=>({j,d:dist(nodes[i],n)})).filter(v=>v.j!==i).sort((a,b)=>a.d-b.d).slice(0,NEIGHBORS);
+    dists.forEach(({j})=>{
+      const key = i<j ? i+"-"+j : j+"-"+i;
+      if (!edges.some(e=>e.key===key)){
+        const l = line(netG, nodes[i].x,nodes[i].y,nodes[j].x,nodes[j].y, {
+          stroke:C_PRIMARY, "stroke-opacity":0.18, "stroke-width":1.6,
+          "vector-effect":"non-scaling-stroke", filter:"url(#glow)"
+        });
+        edges.push({key, a:i, b:j, line:l});
+      }
+    });
+  }
+
+  // packets
+  const packets = [];
+  edges.forEach(e=>{
+    for(let k=0;k<PACKETS_PER;k++){
+      const p = svgEl("circle",{ r:3, fill:"#fff", "fill-opacity":0.0 });
+      netG.append(p);
+      packets.push({ e, t: Math.random(), dir: Math.random()<0.5?1:-1, node:p });
+    }
+  });
+
+  // node visuals
+  nodes.forEach(n=>{
+    n.dot  = svgEl("circle",{cx:n.x,cy:n.y,r:3.2,fill:"#fff","fill-opacity":0.18});
+    n.ring = svgEl("circle",{cx:n.x,cy:n.y,r:6.5,fill:"none",stroke:C_PRIMARY,"stroke-width":2,"stroke-opacity":0.0,filter:"url(#glow)"});
+    netG.append(n.ring); netG.append(n.dot);
+  });
+
+  // sweeps
+  const vSweep = svgEl("rect", { x: netBox.x, y: netBox.y, width: netBox.w, height: 16, fill:"url(#sweepY)", opacity:0.95, filter:"url(#glow)" });
+  const hSweep = svgEl("rect", { x: netBox.x, y: netBox.y, width: 16, height: netBox.h, fill:"url(#sweepX)", opacity:0.85, filter:"url(#glow)" });
+  svg.append(vSweep, hSweep);
+
+  // lock indicator
+  const lockG = svgEl("g", { opacity:0, filter:"url(#hardglow)" });
+  const b = 14;
+  lockG.append(
+    svgEl("path",{d:`M -${b} -${b} h ${b} v 2 h -${b} z`, fill:C_ACCENT}),
+    svgEl("path",{d:`M ${b} -${b} h -${b} v 2 h ${b} z`, fill:C_ACCENT}),
+    svgEl("path",{d:`M -${b} ${b} h ${b} v -2 h -${b} z`, fill:C_ACCENT}),
+    svgEl("path",{d:`M ${b} ${b} h -${b} v -2 h ${b} z`, fill:C_ACCENT})
+  );
+  svg.append(lockG);
+
+  // ===== Noise overlay =====
+  let noiseCanvas, nctx, lastNoise=0;
+  if (NOISE_ENABLE){
+    noiseCanvas = document.createElement("canvas");
+    noiseCanvas.className = "diag-noise";
+    wrap.appendChild(noiseCanvas);
+    nctx = noiseCanvas.getContext("2d",{alpha:true});
+    resizeNoise();
+    window.addEventListener("resize", resizeNoise);
+  }
+
+  // ===== Animation =====
+  let t0 = performance.now(), last = t0, lockAlpha=0, lockedNode=null;
+
+  function loop(now){
+    const dt = (now - last)/1000; last = now;
+
+    // sweeps
+    const pv = ((now - t0)/1000) % SWEEP_VERT_SECONDS;
+    const ph = ((now - t0)/1000) % SWEEP_HORZ_SECONDS;
+    const y  = netBox.y + (pv / SWEEP_VERT_SECONDS) * (netBox.h - vSweep.height.baseVal.value);
+    const x  = netBox.x + (ph / SWEEP_HORZ_SECONDS) * (netBox.w - hSweep.width.baseVal.value);
+    vSweep.setAttribute("y", y.toFixed(1));
+    hSweep.setAttribute("x", x.toFixed(1));
+
+    // packets
+    packets.forEach(p=>{
+      const a = nodes[p.e.a], b = nodes[p.e.b];
+      const L = dist(a,b);
+      const step = (PACKET_SPEED / Math.max(1,L)) * dt * p.dir;
+      p.t += step;
+      if (p.t > 1) p.t -= 1;
+      if (p.t < 0) p.t += 1;
+      const px = a.x + (b.x - a.x) * p.t;
+      const py = a.y + (b.y - a.y) * p.t;
+      p.node.setAttribute("cx", px.toFixed(1));
+      p.node.setAttribute("cy", py.toFixed(1));
+      const nearV = Math.abs(py - y) < 12;
+      const nearH = Math.abs(px - x) < 12;
+      p.node.setAttribute("fill-opacity", (nearV||nearH) ? 0.9 : 0.08);
+      p.node.setAttribute("fill", (nearV&&nearH) ? C_ACCENT : "#fff");
+    });
+
+    // node pulses & lock
+    lockedNode = null;
+    nodes.forEach(n=>{
+      const nearV = Math.abs(n.y - y) < 10;
+      const nearH = Math.abs(n.x - x) < 10;
+
+      if (nearV || nearH){
+        n.ring.setAttribute("stroke-opacity", "0.95");
+        n.dot.setAttribute("fill-opacity", (nearV&&nearH)? "0.95" : "0.35");
+        n.dot.setAttribute("fill", (nearV&&nearH)? C_ACCENT : "#fff");
+      } else {
+        const cur = +n.ring.getAttribute("stroke-opacity") || 0;
+        const next = Math.max(0, cur - dt*1.4);
+        n.ring.setAttribute("stroke-opacity", next.toFixed(2));
+        n.dot.setAttribute("fill-opacity", "0.18");
+        n.dot.setAttribute("fill", "#fff");
+      }
+      if (nearV && nearH && !lockedNode) lockedNode = n;
+    });
+
+    if (lockedNode){
+      lockAlpha = Math.min(1, lockAlpha + dt*3);
+      lockG.setAttribute("opacity", lockAlpha.toFixed(2));
+      lockG.setAttribute("transform", `translate(${lockedNode.x},${lockedNode.y}) scale(${1+Math.sin(now/120)/40})`);
+      setT("ro_targeting","LOCKED");
+    } else {
+      lockAlpha = Math.max(0, lockAlpha - dt*2);
+      lockG.setAttribute("opacity", lockAlpha.toFixed(2));
+      setT("ro_targeting","SEARCHING");
+    }
+
+    // charts
+    tgtSpark.push(Math.random()*0.6 + 0.2);
+    netScope.advance(dt);
+
+    // noise
+    if (NOISE_ENABLE && now - lastNoise > (1000/NOISE_FPS)){
+      drawNoise();
+      lastNoise = now;
+    }
+
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
 
-  // ---- helpers --------------------------------------------------------------
-  function updateDynamics() {
-    const ct = R.cpuTemp || { min:41, max:55, unit:"°C" };
-    const pw = R.power   || { min:74, max:89, unit:"%"  };
-    const ac = R.actuators || { ok: 28, total: 32 };
+  // ===== Readout ticking =====
+  function tickReadouts(){
+    const cpu = rand(CPU_RANGE.min, CPU_RANGE.max);
+    const pwr = rand(PWR_RANGE.min, PWR_RANGE.max);
+    const wiggle = Math.max(0, ACTUATORS.ok + (Math.random()<0.18 ? (Math.random()<0.5?-1:1) : 0));
 
-    set("ro_cpu_core", (rand(ct.min, ct.max)).toFixed(1) + (ct.unit || "°C"));
-    set("ro_pwr_bus",  Math.round(rand(pw.min, pw.max)) + (pw.unit || "%"));
+    setT("ro_cpu_core", cpu.toFixed(1) + (CPU_RANGE.unit||"°C"));
+    setT("ro_pwr_bus",  Math.round(pwr) + (PWR_RANGE.unit||"%"));
+    setT("ro_actuators", `${wiggle}/${ACTUATORS.total} OK`);
+    setT("ro_model",   R.model    || "T-800 / Series 101");
+    setT("ro_region",  R.location || "UNKNOWN");
 
-    const wiggle = Math.max(0, ac.ok + (Math.random() < 0.18 ? (Math.random()<0.5?-1:1) : 0));
-    set("ro_actuators", `${wiggle}/${ac.total} OK`);
+    const cpuPct = (cpu - CPU_RANGE.min) / (CPU_RANGE.max - CPU_RANGE.min);
+    const pwrPct = (pwr - PWR_RANGE.min) / (PWR_RANGE.max - PWR_RANGE.min);
+    gaugeSet(gauges, "CPU", clamp(cpuPct,0,1));
+    gaugeSet(gauges, "PWR", clamp(pwrPct,0,1));
 
-    if (Array.isArray(R.targeting)) set("ro_targeting", pick(R.targeting));
-    if (Array.isArray(R.netlink))   set("ro_netlink",   pick(R.netlink));
+    if (Array.isArray(R.netlink)){
+      setT("ro_netlink", R.netlink[(Math.random()*R.netlink.length)|0]);
+    } else setT("ro_netlink","UPLINK: READY");
   }
 
-  function mk(tag, attrs, child) {
-    const n = document.createElementNS("http://www.w3.org/2000/svg", tag);
-    if (attrs) for (const k in attrs) n.setAttribute(k, attrs[k]);
-    if (child != null) n.textContent = child;
-    return n;
+  // ===== Primitives & widgets =====
+  function div(cls){ const d=document.createElement("div"); if (cls) d.className=cls; return d; }
+  function svgEl(tag, attrs){ const n=document.createElementNS("http://www.w3.org/2000/svg", tag); if (attrs) for(const k in attrs) n.setAttribute(k, attrs[k]); return n; }
+  function rect(p,x,y,w,h,attrs){ const r=rectEl(x,y,w,h); for(const k in attrs) r.setAttribute(k, attrs[k]); p.append(r); return r; }
+  function rectEl(x,y,w,h){ return svgEl("rect",{x,y,width:w,height:h}); }
+  function line(p,x1,y1,x2,y2,attrs){ const l=svgEl("line",{x1,y1,x2,y2,...attrs}); p.append(l); return l; }
+  function text(p,x,y,str,attrs){ const t=svgEl("text",{x,y,...attrs}); t.textContent=str; p.append(t); return t; }
+  function grid(p,w,h,step,color){
+    for(let x=0;x<=w;x+=step) line(p,x,0,x,h,{stroke:color,"stroke-width":1});
+    for(let y=0;y<=h;y+=step) line(p,0,y,w,y,{stroke:color,"stroke-width":1});
   }
-  function set(id, val) {
-    const node = svg.getElementById ? svg.getElementById(id) : svg.querySelector("#"+id);
-    if (node) node.textContent = val;
+  function glow(id, sd){
+    const f = svgEl("filter", { id, x:"-40%", y:"-40%", width:"180%", height:"180%" });
+    f.append(svgEl("feGaussianBlur", { stdDeviation:String(sd), result:"b" }));
+    const m = svgEl("feMerge");
+    m.append(svgEl("feMergeNode",{in:"b"}));
+    m.append(svgEl("feMergeNode",{in:"SourceGraphic"}));
+    f.append(m); return f;
   }
-  const rand = (a,b)=> a + Math.random()*(b-a);
-  const pick = (arr)=> arr[(Math.random()*arr.length)|0];
-  function hexA(hex, a){
-    const h = hex.replace('#',''); const v = h.length===3 ? h.split('').map(c=>c+c).join('') : h.padEnd(6,'0').slice(0,6);
-    const r = parseInt(v.slice(0,2),16), g = parseInt(v.slice(2,4),16), b = parseInt(v.slice(4,6),16);
-    return `rgba(${r},${g},${b},${a})`;
+  function gradY(id, stops){
+    const g = svgEl("linearGradient",{id, x1:"0",y1:"0",x2:"0",y2:"1"});
+    stops.forEach(([off,col,op])=>g.append(svgEl("stop",{offset:(off*100)+"%","stop-color":col,"stop-opacity":op})));
+    return g;
+  }
+  function gradX(id, stops){
+    const g = svgEl("linearGradient",{id, x1:"0",y1:"0",x2:"1",y2:"0"});
+    stops.forEach(([off,col,op])=>g.append(svgEl("stop",{offset:(off*100)+"%","stop-color":col,"stop-opacity":op})));
+    return g;
+  }
+  function dist(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
+  function setT(id, val){ const t = svg.getElementById ? svg.getElementById(id) : svg.querySelector("#"+id); if (t) t.textContent = val; }
+  function clamp(x,a,b){ return Math.max(a,Math.min(b,x)); }
+  function rand(a,b){ return a + Math.random()*(b-a); }
+
+  function gauge(p, x, y, w, h, label, color, map){
+    // ticks
+    for(let i=0;i<=10;i++){
+      const tx = x + i*(w/10);
+      line(p, tx, y+h, tx, y+h+4, { stroke:"rgba(255,255,255,0.35)", "stroke-width":1 });
+    }
+    const fill = rect(p, x, y, 1, h, { fill:color, filter:"url(#glow)" });
+    map.set(label, { x,y,w,h, fill });
+  }
+  function gaugeSet(map, label, pct){
+    const g = map.get(label); if (!g) return;
+    g.fill.setAttribute("width", Math.max(1, g.w * pct).toFixed(1));
+  }
+
+  function sparkline(p, x,y,w,h,color, alpha=1){
+    rect(p, x,y,w,h, { fill:`rgba(255,255,255,${0.06*alpha})`, stroke:"rgba(255,255,255,0.2)", "stroke-width":1 });
+    const path = svgEl("path", { fill:"none", stroke:color, "stroke-width":1.5, filter:"url(#glow)" });
+    p.append(path);
+    const N = 80; const vals = Array.from({length:N}, ()=>0.5);
+    function draw(){
+      let d="";
+      for(let i=0;i<N;i++){
+        const px = x + (i/(N-1))*w;
+        const py = y + (1-vals[i])*h;
+        d += (i===0?`M ${px} ${py}`:` L ${px} ${py}`);
+      }
+      path.setAttribute("d", d);
+    }
+    draw();
+    return {
+      push(v){ vals.push(clamp(v,0,1)); vals.shift(); draw(); }
+    };
+  }
+
+  function oscilloscope(p, x,y,w,h,color, clipId){
+    const g = svgEl("g", clipId ? { "clip-path":`url(#${clipId})` } : {});
+    p.append(g);
+    rect(g, x,y,w,h, { fill:"rgba(255,255,255,0.06)", stroke:"rgba(255,255,255,0.2)", "stroke-width":1 });
+    const path = svgEl("path", { fill:"none", stroke:color, "stroke-width":1.6, filter:"url(#glow)" });
+    g.append(path);
+    let t=0, phase=Math.random()*Math.PI*2;
+    function draw(){
+      const N=120; let d="";
+      for(let i=0;i<N;i++){
+        const px = x + (i/(N-1))*w;
+        const s = Math.sin((i*0.18)+phase)*0.35 + (Math.random()-0.5)*0.15;
+        const py = y + (0.5 - s*0.45)*h;
+        d += (i===0?`M ${px} ${py}`:` L ${px} ${py}`);
+      }
+      path.setAttribute("d", d);
+    }
+    draw();
+    return {
+      advance(dt){ t+=dt; if(t>0.06){ t=0; phase+=0.22; draw(); } }
+    };
+  }
+
+  // ===== Noise =====
+  function resizeNoise(){
+    if (!noiseCanvas) return;
+    const r = wrap.getBoundingClientRect();
+    noiseCanvas.width  = Math.max(1, Math.floor(r.width));
+    noiseCanvas.height = Math.max(1, Math.floor(r.height));
+    noiseCanvas.style.position = "absolute";
+    noiseCanvas.style.inset = "0";
+    noiseCanvas.style.pointerEvents = "none";
+  }
+  function drawNoise(){
+    if (!nctx) return;
+    const { width, height } = noiseCanvas;
+    const id = nctx.createImageData(width, height);
+    const data = id.data, A = (NOISE_ALPHA*255)|0;
+    for (let i=0;i<data.length;i+=4){
+      const v = (Math.random()*255)|0;
+      data[i]=data[i+1]=data[i+2]=v; data[i+3]=A;
+    }
+    nctx.putImageData(id, 0, 0);
   }
 })();
