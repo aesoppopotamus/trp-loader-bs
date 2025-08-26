@@ -157,6 +157,42 @@ window.TACMAP.anchors = [
   { x: 0.86, y: 0.43 }, // Spokane
   { x: 0.86, y: 0.67 }  // Pullman / Whitman
 ];
+  
+// ASCII boot splash config
+window.INIT = {
+  introEnabled: true,   // show the splash
+  introHideAll: true,
+  introTypeMs: 4,       // typing speed (ms/char)
+  introHoldMs: 1400,    // pause after typing
+  introDimBg: 0.72,     // overlay darkness (0..1)
+
+  asciiLogo: [
+  "▄",
+  "▄▄▄▄▄",
+  "▄▄▄▄▄▄▄▄▄",
+  "▗  ▄▄▄▄▄▄▄▄▄  ▖",
+  "▄▄▄   ▄▄▄▄▄   ▄▄▄",
+  "▄▄▄▄▄▄▄   ▄   ▄▄▄▄▄▄▄",
+  "▄▄▄▄▄▄▄▄▄▄▄   ▄▄▄▄▄▄▄▄▄▄▄",
+  "▄▄▄▄▄▄▄▄▄▄▄▄▄   ▄▄▄▄▄▄▄▄▄▄▄▄▄",
+  "▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄",
+  "",
+  " S K Y N E T   G L O B A L   D E F E N S E",
+  "   © Cyberdyne Systems // v2.3 (2004)",
+  "------------------------------------------------------"
+  ],
+  // boot script lines under the logo
+  bootScript: [
+    "POST ............. OK",
+    "Memory Test ...... 640K OK",
+    "DMA .............. OK",
+    "A20 Line ......... ENABLED",
+    "PXE Hand-off ..... OK",
+    "Transfer control to loader ..."
+  ]
+};
+
+
 
 
 // vars for the DOS terminal 
@@ -217,7 +253,7 @@ window.DOS = {
   seed: null,
 
   // Speeds & probabilities
-  linesPerSecond: 10,    // how many lines to print per second
+  linesPerSecond: 5,    // how many lines to print per second
   bannerChance: 0.05,    // chance to print a dashed banner line
   blockChance: 0.12,     // chance to print a labeled multi-line "block"
   startLine: 2004,       // starting line number
@@ -588,39 +624,3 @@ labeledBlocks: [
 if (typeof window.addresses === "undefined" && typeof addresses !== "undefined") window.addresses = addresses;
 if (typeof window.instructions === "undefined" && typeof instructions !== "undefined") window.instructions = instructions;
 if (typeof window.registers === "undefined" && typeof registers !== "undefined") window.registers = registers;
-
-  // ASCII boot splash config
-window.INIT = {
-  introEnabled: true,   // show the splash
-  introHideUnderlay: false,
-  introTypeMs: 4,       // typing speed (ms/char)
-  introHoldMs: 1400,    // pause after typing
-  introDimBg: 0.72,     // overlay darkness (0..1)
-
-  asciiLogo: [
-  "▄",
-  "▄▄▄▄▄",
-  "▄▄▄▄▄▄▄▄▄",
-  "▗  ▄▄▄▄▄▄▄▄▄  ▖",
-  "▄▄▄   ▄▄▄▄▄   ▄▄▄",
-  "▄▄▄▄▄▄▄   ▄   ▄▄▄▄▄▄▄",
-  "▄▄▄▄▄▄▄▄▄▄▄   ▄▄▄▄▄▄▄▄▄▄▄",
-  "▄▄▄▄▄▄▄▄▄▄▄▄▄   ▄▄▄▄▄▄▄▄▄▄▄▄▄",
-  "▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄",
-  "",
-  " S K Y N E T   G L O B A L   D E F E N S E",
-  "   © Cyberdyne Systems // v2.3 (2004)",
-  "------------------------------------------------------"
-  ],
-  // boot script lines under the logo
-  bootScript: [
-    "POST ............. OK",
-    "Memory Test ...... 640K OK",
-    "DMA .............. OK",
-    "A20 Line ......... ENABLED",
-    "PXE Hand-off ..... OK",
-    "Transfer control to loader ..."
-  ]
-};
-
-
