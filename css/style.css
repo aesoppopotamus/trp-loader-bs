@@ -1,61 +1,85 @@
+/* ========================================================================== */
+/* Global layout + variables                                                  */
+/* ========================================================================== */
+
+:root {
+  /* Left column width; tweak 22–30vw */
+  --feed-w: 24vw;
+  --addr-w: 10ch;
+
+  /* DOS terminal paddings / gaps */
+  
+  --dos-pad-x: 0.7vw;
+  --dos-pad-y: 0.6vh;
+
+  --diag-w: 26vw;
+  --diag-gap: 1.5vw;
+  --diag-border-color: #ffffff;
+  --diag-bg: rgba(0,0,0,0.45);
+  --diag-border-radius: 12px;
+  --diag-shadow: 0 0 1vh rgba(255,255,255,0.35);
+  --pane-h: clamp(420px, 58vh, 880px);
+  --diag-fs: clamp(14px, min(1.1vw, 1.6vh), 22px);
+}
+
 /* Body Background and General Styling */
 body {
   background: url('../img/background.jpg') no-repeat center center fixed;
   background-size: cover;
   animation: panZoomEffect 60s ease-in-out infinite alternate;
   color: #ff0000; /* Terminator red for text */
-  font-family: 'Courier New', Courier, monospace; /* Monospaced font for a more techy look */
+  font-family: 'Courier New', Courier, monospace;
   height: 100vh;
   margin: 0;
   overflow: hidden;
   opacity: 0.9;
 }
 
-/* Import the Terminator Real NFI font */
+/* Import fonts */
 @font-face {
   font-family: 'TerminatorReal';
   src: url('../fonts/TerminatorRealNFI.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
+  font-display: swap;
+}
+/* Optional DOS VGA recreation (include file if you have it) */
+@font-face {
+  font-family: "Perfect DOS VGA 437";
+  src: url('../fonts/Perfect\ DOS\ VGA\ 437\ Win.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
 }
 
-/* Loading Wrapper */
-#loading-wrapper {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  height: 100vh;
-  background-color: rgba(0, 0, 0, 0.8); /* Background contrast */
-  padding: 0 2vw;
-  position: relative;
-  z-index: 2;
+/* ========================================================================== */
+/* Wrapper + HUD                                                              */
+/* ========================================================================== */
+
+/* Main layout grid: [DOS feed] [MAP] [DIAG] */
+#loading-wrapper{
+  display: grid;
+  grid-template-columns: minmax(260px, var(--feed-w)) 1fr minmax(360px, var(--diag-w));
+  grid-auto-rows: 1fr;
+  align-items: center;             /* vertical centering of modules */
+  justify-items: stretch;
+  gap: var(--diag-gap);
+  min-height: 100vh;
+  padding: clamp(8px, 1.5vw, 20px);
+  position: relative;              /* for overlays like scanlines */
+  background-color: rgba(0,0,0,0.8);
 }
 
 /* Top Right Logo and Text (HUD) */
 #top-right {
   position: absolute;
   top: 2vh;
-  right: 2vw; /* Adjust to top-right */
+  right: 2vw;
   z-index: 10;
-  text-align: right; /* Align text to the right */
+  text-align: right;
   display: flex;
   flex-direction: column;
-  align-items: flex-end; /* Ensure content is aligned to the right */
-}
-
-.logo {
-  width: 25vw;
-  max-width: 200px;
-  height: auto;
-  margin-bottom: 1vh;
-  z-index: 2;
-}
-
-.logo img {
-  width: 15vh;
-  max-width: 200px;
-  height: auto;
-  display: block;
+  align-items: flex-end;
 }
 
 /* Scan Text (Titles) */
@@ -63,45 +87,18 @@ body {
   font-family: 'TerminatorReal', 'Orbitron', 'Audiowide', sans-serif;
   color: #e74c3c;
   text-shadow: 0 0 5px rgba(255, 85, 85, 0.8), 0 0 15px rgba(255, 85, 85, 0.5);
-  font-size: 1.8rem;
   margin-bottom: 1vh;
   text-transform: uppercase;
-  text-align: right; /* Right-align text */
+  text-align: right;
 }
 
-h1.scan-text {
-  font-size: 2vw;
-  margin-bottom: 1vh;
-  letter-spacing: 0.1em;
-  z-index: 5;
-}
+h1.scan-text { font-size: 2vw; letter-spacing: 0.12em; }
+h2.scan-text { font-size: 1.5vw; color: #37ddfa; text-shadow: 0 0 5px #00ddff; }
+h3.scan-text { font-size: 1vw; color: #3ccde7; text-shadow: 0 0 5px #00ddff; }
+h4.scan-text { font-size: .75vw; color: #3ccde7; text-shadow: 0 0 5px #00ddff; }
 
-h2.scan-text, h3.scan-text {
-  margin-bottom: 1vh;
-  z-index: 5;
-}
-
-h2.scan-text {
-  font-size: 1.5vw;
-  color: #37ddfa;
-  text-shadow: 0 0 5px #00ddff;
-}
-
-h3.scan-text {
-  font-size: 1vw;
-  color: #3ccde7;
-  text-shadow: 0 0 5px #00ddff;
-}
-
-
-/* Scanline Effect */
 .scanlines {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
+  position: absolute; inset: 0; pointer-events: none;
   background: repeating-linear-gradient(
     0deg,
     rgba(0, 225, 255, 0.05) 0,
@@ -109,72 +106,120 @@ h3.scan-text {
     transparent 3px,
     transparent 3px
   );
-  z-index: 3;
+  z-index: 3; opacity: 1;
+}
+
+/* Splash overlay container already defined as .startseq… ensure it’s on top */
+.startseq {
+  position: absolute;
+  inset: 0;
+  display: none;
+  z-index: 30;         /* above diag */
+  pointer-events: none;
+}
+.startseq--visible { display: grid; place-items: center; }
+
+.startseq__panel {
+  text-align: center;
+  max-width: 96%;
+  max-height: 92%;
+  padding: 0.75rem 1.25rem;
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 12px;
+  background:
+    radial-gradient(ellipse at center,
+      rgba(0,0,0,.42) 0%,
+      rgba(0,0,0,.28) 60%,
+      rgba(0,0,0,0) 100%);
+  box-shadow:
+    inset 0 0 28px rgba(55,221,250,0.22),
+    0 0 18px rgba(0,0,0,0.6);
+}
+
+.startseq__inner { display:inline-block; transform-origin:center top; }
+.startseq__pre{
+  margin:0;
+  white-space:pre;
+  font-family: "Perfect DOS VGA 437","Courier New", Consolas, Menlo, monospace;
+  font-size:16px;
+  line-height:1;
+  letter-spacing:0;
+  font-variant-ligatures:none;
+  color: #ff3b3b; /* Skynet red */
+  text-shadow:
+    0 0 6px rgba(255, 59, 59, .6),
+    0 0 16px rgba(255, 0, 0, .25);
+}
+
+/* Two-tone ASCII */
+.startseq__pre--logo {
+  color: #ff3b3b; /* Skynet red */
+  text-shadow:
+    0 0 6px rgba(255, 59, 59, .6),
+    0 0 16px rgba(255, 0, 0, .25);
+  font-family: "Perfect DOS VGA 437","Courier New", Consolas, Menlo, monospace; /* keeps block chars aligned */
+}
+
+.startseq__caption {
+  color: #9fdcff; /* white/cyan-ish caption */
+  text-shadow: 0 0 4px rgba(55,221,250,.45);
+  margin-top: .35rem;
+}
+
+.startseq__log{
+  margin:.6rem 0 0;
+  text-align:left;
+  white-space:pre;
+  font-family: "Perfect DOS VGA 437","Courier New", Consolas, Menlo, monospace;
+  font-size:14px;
+  line-height:1.1;
+  color: #9fdcff;
+  text-shadow: 0 0 2px rgba(55, 221, 250, .35);
+}
+.startseq--fadeout { animation: startseqFade 700ms ease forwards; }
+@keyframes startseqFade { to { opacity:0; } }
+
+/* Hide any scrolling during the splash */
+.startseq,
+.startseq__panel,
+.startseq__pre,
+.startseq__log {
+  overflow: hidden !important; /* no scrollbars */
+}
+
+/* Belt & suspenders: remove OS scrollbars if a UA sneaks them in */
+.startseq__panel,
+.startseq__pre,
+.startseq__log {
+  scrollbar-width: none;                 /* Firefox */
+}
+.startseq__panel::-webkit-scrollbar,
+.startseq__pre::-webkit-scrollbar,
+.startseq__log::-webkit-scrollbar {
+  width: 0;
+  height: 0;                             /* WebKit/Blink */
+}
+
+/* ================== DIAGNOSTICS CENTERPIECE ================== */
+/* This block replaces the old map/bracket styles.                      */
+
+/* MAP (center) */
+/* Center column: MAP — fixed ratio, centered */
+/* --- MAP stays unchanged, but ensure the host has a size --- */
+#map-block { 
+  opacity: 0;
+  transition: opacity .15s linear;
+}
+#map-block.is-visible { 
   opacity: 1;
 }
 
-/* Console Styling */
-#console {
-  position: absolute;
-  bottom: 0;
-  left: 50vw;
-  transform: translateX(-50%); /* Center horizontally */
-  width: 45vw; /* Adjust width to fit within the layout */
-  height: 15vh;
-  background-color: rgba(0, 0, 0, 0.8);
-  padding: 1vw;
-  font-family: 'Courier New', monospace;
-  font-size: 0.8vw;
-  color: #00ff00;
-  text-shadow: 0 0 5px rgba(255, 255, 255, 0.8); /* Glowing white effect */
-  overflow: hidden;
-  z-index: 10; /* Make sure it’s above other elements */
-  opacity: 0.8;
-}
-
-#cursor {
-  font-weight: bold;
-  color: #00ff00;
-  animation: blink 1s infinite;
-}
-
-/* Bracket Container */
-.bracket-container {
-  position: absolute;
-  top: 50vh;
-  left: 50vw;
-  width: 40vw; /* Increased size */
-  max-width: 40vw;
-  height: 45vh; /* Increased height */
-  max-height: 45vh;
-  transform: translate(-50%, -50%) rotate(0deg); /* Centered */
-  border: 2px solid #fff; /* Optional: Visible brackets */
-  border-radius: 10px; /* Optional: Rounded bracket */
-  overflow: hidden; /* Ensure the map stays within the bracket */
-  z-index: 2;
-}
-
-/* Map Image */
-.map-image {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 100%; /* Adjust size to fit within the bracket */
-  height: 100%;
-  transform: translate(-50%, -50%) scale(0.5) rotate(180deg); /* Start rotated and small */
-  transition: transform 4s ease-out, opacity 4s ease-in-out; /* Rotate, zoom, and opacity change */
-  opacity: 0; /* Start invisible for holographic fade-in */
-  will-change: transform, opacity;
-}
-
-/* Scanlines (overlay on top of the map for the holo effect) */
-.holo-scanlines {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
+#map-block{
+  grid-column: 2;
+  justify-self: center;
+  height: var(--pane-h);
+  aspect-ratio: 1800 / 1170;
+  max-width: 100%;
   background: repeating-linear-gradient(
     0deg,
     rgba(90, 0, 0, 0.171) 0,
@@ -182,194 +227,323 @@ h3.scan-text {
     transparent 0.5vh,
     transparent 0.5vh
   );
-  z-index: 3; /* Ensure it’s above the map but below the main UI */
-  opacity: 1; /* Subtle scanlines for the hologram look */
-  animation: scanline-animation 2s linear infinite; /* Smooth moving scanlines */
-}
-
-/* Scanline animation to move lines up and down */
-@keyframes scanline-animation {
-  0% {
-    background-position: 0 0;
-  }
-  100% {
-    background-position: 0 100%;
-  }
-}
-
-/* Assembly Feed Containers */
-.assembly-feed-container-left, .assembly-feed-container-right {
-  position: absolute;
-  background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent background */
-  border: 0.1vh solid #ffffff; /* White border for the container */
-  overflow: hidden; /* Ensure content doesn't overflow */
-  z-index: 1; /* Place above the background but below important elements */
-  box-shadow: 0 0 1vh rgba(255, 255, 255, 0.5); /* Subtle glow */
-}
-
-/* Positioning for the Left Container */
-.assembly-feed-container-left {
-  top: 1vh;
-  left: 1vw;
-  max-height: calc(100vh - 2vh);
-  max-width: 20vw;
-}
-
-/* Positioning for the Right Container */
-.assembly-feed-container-right {
-  top: 30vh;
-  right: 1vw;
-}
-
-/* Scanlines Effect for Containers */
-.assembly-feed-container-left::before, .assembly-feed-container-right::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(255, 255, 255, 0.05) 0,
-    rgba(255, 255, 255, 0.05) 0.2vh,
-    transparent 0.4vh,
-    transparent 0.4vh
-  );
-  z-index: 2; /* Ensure scanlines are above the background but below text */
-  opacity: 0.3; /* Subtle scanlines */
-  animation: scanline-animation 2s linear infinite; /* Moving scanlines */
-}
-
-/* Assembly Code Feed Left Column */
-.assembly-feed-left {
-  position: relative; /* Position inside container */
-  font-family: 'Courier New', monospace;
-  font-size: 0.8vw;
-  line-height: 0.7vw;
-  color: #ffffff;
-  text-shadow: 0 0 0.5vh rgba(255, 255, 255, 0.8); /* Glowing white effect */
-  z-index: 3; /* Ensure it's above the scanlines */
-  opacity: 0.8; /* Adjust opacity for better readability */
-  padding: 0.8vh;
-  overflow-y: auto; /* Allow scrolling if content overflows */
-}
-
-/* Assembly Code Feed Right Column */
-.assembly-feed-right {
-  position: relative; /* Position inside container */
-  font-family: 'Courier New', monospace;
-  font-size: 0.8rem;
-  line-height: 1.5vw;
-  color: #ffffff;
-  text-shadow: 0 0 0.5vh rgba(255, 255, 255, 0.8); /* Glowing white effect */
-  z-index: 3; /* Ensure it's above the scanlines */
-  opacity: 0.8; /* Adjust opacity for better readability */
-  padding: 0.5vh;
-  overflow-y: auto; /* Allow scrolling if content overflows */
-}
-
-/* Lore Feed Container (Right Column) */
-.lore-feed-container {
-  position: absolute;
-  top: 25vh;
-  right: 1vw;
-  max-width: 18vw;
-  width: 18vw;
-  max-height: calc(100vh - 2vh); /* Cap height to prevent overflow */
-  background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent background */
-  border: 0.1vh solid #ffffff;
-  box-shadow: 0 0 1vh rgba(255, 255, 255, 0.5); /* Subtle glow */
-  padding: .8vh;
-  z-index: 1;
-  overflow-y: auto; /* Scrollable if content exceeds container height */
-}
-
-/* Scanlines Effect for Lore Feed */
-.lore-feed-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(255, 255, 255, 0.05) 0,
-    rgba(255, 255, 255, 0.05) 0.2vh,
-    transparent 0.3vh,
-    transparent 0.3vh
-  );
+  border: 2px solid var(--diag-border-color);
+  border-radius: var(--diag-border-radius);
+  box-shadow: var(--diag-shadow);
+  overflow: hidden;
+  position: relative;
   z-index: 2;
-  opacity: 0.3;
-  animation: scanline-animation 2s linear infinite;
+}
+#map-svg{ height:100%; width:100%; display:block; }
+
+
+/* Default TACMAP node + ring appearance */
+#map-svg .trp-nodes circle {
+  color: #7ad3ff;                /* sets "currentColor" base */
+  fill: #7ad3ff;                 /* neon blue */
+  fill-opacity: 0.85;
+  stroke: #7ad3ff;               /* for rings */
+  stroke-opacity: 0.25;
+  filter: drop-shadow(0 0 4px #7ad3ff)
+          drop-shadow(0 0 8px #7ad3ff);
 }
 
-/* Lore Feed Text Styling */
-.lore-feed {
+/* Stronger alert glows */
+#map-svg .trp-nodes circle.alert-yellow,
+#map-svg .trp-nodes circle.alert-yellow + .trp-node-ring {
+  filter: drop-shadow(0 0 6px #ffd166)
+          drop-shadow(0 0 14px #ffd166)
+          drop-shadow(0 0 28px #ffd166);
+}
+
+#map-svg .trp-nodes circle.alert-red,
+#map-svg .trp-nodes circle.alert-red + .trp-node-ring {
+  filter: drop-shadow(0 0 6px #ff5252)
+          drop-shadow(0 0 14px #ff5252)
+          drop-shadow(0 0 34px #ff0000);
+}
+
+/* Let alert rings be more visible while active */
+#map-svg .trp-nodes .trp-node-ring.alert-yellow,
+#map-svg .trp-nodes .trp-node-ring.alert-red {
+  stroke-opacity: 0.45 !important;
+  stroke-width: 1.6 !important;
+}
+
+/* Optional: glow for link lines */
+#map-svg .trp-links line {
+  stroke: #7ad3ff;
+  stroke-opacity: 0.35;
+  filter: drop-shadow(0 0 3px #7ad3ff);
+}
+
+/* TACMAP ticker (overlay at bottom of the map card) */
+#tacmap-ticker {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  padding: 0px 20px;
+  background: linear-gradient(180deg, rgba(8,16,24,0.0), rgba(8,16,24,0.55));
+  border-top: 1px solid rgba(122,211,255,0.25);
+  font-family: "Perfect DOS VGA 437","Courier New", monospace;
+  font-size: 13px; line-height: 1.35;
+  color: #cfe7ff;
+  pointer-events: none;
+  max-height: 30%;
+  overflow: hidden;
+}
+#tacmap-ticker .row {
+  display: flex;
+  gap: 8px;
+  white-space: nowrap;
+  filter: drop-shadow(0 0 2px rgba(122,211,255,0.6));
+  opacity: 0.95;
+  transform: translateY(0);
+  transition: opacity 400ms ease, transform 400ms ease;
+}
+#tacmap-ticker .row.fade {
+  opacity: 0; transform: translateY(8px);
+}
+
+#tacmap-ticker .ts   { opacity: 0.8; }
+#tacmap-ticker .tag  { color: #7ad3ff; }
+#tacmap-ticker .tag.yellow { color: #ffd166; } /* SURV/SCAN/OBS */
+#tacmap-ticker .tag.red    { color: #ff6b6b; } /* THREAT/OMEGA/LOCK */
+#tacmap-ticker .loc  { opacity: 0.85; }
+#tacmap-ticker .tag        { letter-spacing: 0.04em; }
+#tacmap-ticker .msg        { opacity: 0.95; }
+
+/* --- DIAG: fill container + scale text --- */
+#diag-block{
+  /* switch to flex so the child can grow to full height reliably */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+
+  background: linear-gradient(180deg, rgba(10,20,28,0.35), rgba(10,20,28,0.15));
+  border: 2px solid var(--diag-border-color);
+  border-radius: var(--diag-border-radius);
+  box-shadow: var(--diag-shadow);
+  padding: clamp(8px, 1.2vw, 14px);
+  z-index: 2;
+  overflow: hidden;
+}
+
+
+/* ========================================================================== */
+/* Left "quadrant" container + DOS boot                                       */
+/* ========================================================================== */
+
+/* Make sure the left container isolates its own stacking so overlays are predictable */
+.assembly-feed-container-left{
+  position: relative;
+  isolation: isolate;                /* new: clear stacking weirdness */
+  grid-column: 1;
+  align-self: stretch;
+  min-height: var(--pane-h);
+  box-sizing: border-box;
+  background-color: rgba(0,0,0,0.6);
+  border: 0.1vh solid #ffffff;
+  overflow: hidden;
+  z-index: 2;
+  box-shadow: 0 0 1vh rgba(255,255,255,0.5);
+}
+
+/* DOS screen: keep it as the effect host */
+#dos-screen.crt {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+}
+
+/* --- STATIC fine scanlines (visible) --- */
+#dos-screen.crt::before {
+  content: "";
+  position: absolute; inset: 0; pointer-events: none;
+  /* 1px line, 1px gap; force visibility a bit more than before */
+  background-image: linear-gradient(
+    0deg,
+    rgba(255,255,255,0.06) 0, 
+    rgba(255,255,255,0.06) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  background-size: 100% 2px;   /* crisp stripes */
+  opacity: .22;
+  z-index: 2;                  /* on top of content */
+}
+
+/* --- MOVING “beam” + vignette on a single overlay --- */
+#dos-screen.crt::after {
+  content: "";
+  position: absolute; inset: 0; pointer-events: none;
+  z-index: 3;                  /* above stripes; tweak if you want inverse */
+
+  /* Layer 1: moving beam (no-repeat vertical band)
+     Layer 2: static vignette
+     Layer 3: base pass-through */
+  background:
+    linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.10) 50%, transparent 100%)
+      50% -20% / 100% 35% no-repeat,
+    radial-gradient(ellipse at center, rgba(255,255,255,0.06) 0%, rgba(0,0,0,0) 60%)
+      50% 50% / cover no-repeat,
+    linear-gradient(#000, #000);
+  mix-blend-mode: screen;
+  opacity: .28;
+
+  animation: crt-beam 6s linear infinite;
+  will-change: background-position;
+}
+
+/* Beam rolls from top to bottom */
+@keyframes crt-beam {
+  0%   { background-position: 50% -20%, 50% 50%, 0 0; }
+  100% { background-position: 50% 120%, 50% 50%, 0 0; }
+}
+
+/* If you still want the container overlay to animate, at least fix the keyframes name: */
+@keyframes dos-scan { 
+  from { background-position: 0 0; } 
+  to   { background-position: 0 2px; } /* shift by the stripe size for visible motion */
+}
+
+/* And point it at the correct keyframes if you keep it:
+.assembly-feed-container-left::before { 
+  animation: dos-scan 2s linear infinite;
+}
+*/
+
+/* Terminal text area (CRISP, no glow, no fixed width/height) */
+.terminal {
+  position: absolute;
+  inset: 0.8vh 0.8vw;            /* padding from edges */
+  font-family: "Perfect DOS VGA 437","PxPlus IBM VGA 8x16","Courier New",monospace !important;
+  font-weight: 400;
+  font-style: normal;
+  inset: var(--dos-pad-y) var(--dos-pad-x);
+  font-size: clamp(10px, 0.64vw, 12px);  /* small, DOS-y */
+  line-height: 1.06;                      /* dense rows */
+  color: #e8e8e8;                         /* not pure white, less bloom */
+  letter-spacing: 0;
+  text-shadow: none !important;           /* kill glow */
+  white-space: pre-wrap;                    /* single-line rows */
+  overflow: hidden;                       /* no scrollbars */
+}
+
+/* Each printed line: be flex, and allow wrap */
+.terminal .assembly-line{
+  display: flex;               /* was invalid: flex-start */
+  flex-wrap: wrap;             /* allow instructions to wrap to next line */
+  align-items: baseline;
+  gap: 0.4ch;
+  min-width: 0;
+}
+/* let children shrink/wrap */
+.terminal .assembly-line > *{ min-width: 0; }
+
+/* ========================================================================== */
+/* Console ticker                                         */
+/* ========================================================================== */
+
+/* Bottom-center HUD console (true center, compact, wraps lines) */
+#console{
+  position: fixed;
+  bottom: clamp(12px, 4vh, 40px);
+
+  /* true centering without transforms */
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+
+  /* compact, proportional width */
+  width: clamp(480px, 55vw, 900px);
+  box-sizing: border-box;
+
+  /* wrap long lines cleanly */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-align: left;
+
+  /* styling */
+  padding: 0.9vh 1.2vw;
+  background: rgba(0,0,0,0.78);
+  border: 1px solid rgba(0,255,128,0.35);
+  box-shadow:
+    0 0 1.2vh rgba(0,255,128,0.25) inset,
+    0 0 1.2vh rgba(0,0,0,0.6);
+  border-radius: 4px;
+
   font-family: 'Courier New', monospace;
-  font-size: 1vw;
-  color: #18f3e1;
-  text-shadow: 0 0 0.5vh rgba(255, 255, 255, 0.8);
-  z-index: 3;
-  opacity: 0.8;
-  padding: 0.7vh;
-}
+  font-size: clamp(12px, 1.5vw, 16px);
+  color: #00ff66;
 
-/* Scanline animation to move lines up and down */
-@keyframes scanline-animation {
-  0% {
-    background-position: 0 0;
-  }
-  100% {
-    background-position: 0 100%;
-  }
+  z-index: 25;
+  pointer-events: none;
+}
+#console #cursor{ opacity: 0.9; }
+
+#cursor {
+  margin-left: 0.25ch;
+  font-weight: bold;
+  color: #00ff00;
+  animation: blink 1s infinite;
 }
 
 
-/* Music Play Button */
+/* ========================================================================== */
+/* Music Play Button                                                          */
+/* ========================================================================== */
+
 #play-music {
   position: absolute;
-  bottom: 22vh; /* Adjusted to be above the console */
-  left: 50vw;
+  bottom: 22vh;
+  left: 50%;
   transform: translateX(-50%);
   z-index: 10;
   padding: 1vh 2vh;
-  background-color: #ff0000;
-  color: white;
-  border: none;
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-family: 'Orbitron', sans-serif; /* Sci-fi font */
-  text-transform: uppercase;
-  transition: background-color 0.3s ease;
-  opacity: 0.5;
+  background-color: #ff0000; color: #fff; border: none; cursor: pointer;
+  font-size: 0.8rem; font-family: 'Orbitron', sans-serif; text-transform: uppercase;
+  transition: background-color 0.3s ease; opacity: 0.5;
+}
+#play-music:hover { background-color: #ff5555; }
+
+/* Keep the holo scanlines overlay clickable-off and on top */
+.holo-scanlines{
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(255,255,255,0.05) 0,
+    rgba(255,255,255,0.05) 2px,
+    transparent 3px,
+    transparent 3px
+  );
+  animation: scanline-animation 2s linear infinite;
+  opacity: 0.35;
 }
 
-#play-music:hover {
-  background-color: #ff5555; /* Lighter red on hover */
-}
+/* ========================================================================== */
+/* Keyframes                                                                  */
+/* ========================================================================== */
 
-/* Blinking cursor animation */
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
-}
-
-/* Keyframes for Pan and Zoom Animation */
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+@keyframes scanline-animation { 0%{background-position:0 0} 100%{background-position:0 100%} }
 @keyframes panZoomEffect {
-  0% {
-    background-position: 0% 25%;
-    background-size: 140%;
+  0% { background-position: 0% 25%; background-size: 140%; }
+  50% { background-position: 100% 25%; background-size: 160%; }
+  100% { background-position: 0% 50%; background-size: 140%; }
+}
+
+@media (max-width: 1200px){
+  #loading-wrapper{
+    grid-template-columns: 1fr;
+    align-items: start;
   }
-  50% {
-    background-position: 100% 25%;
-    background-size: 160%;
-  }
-  100% {
-    background-position: 0% 50%;
-    background-size: 140%;
-  }
+  .assembly-feed-container-left{ grid-column: 1; order: 1; min-height: auto; }
+  #map-block{ grid-column: 1; order: 2; width: 100%; }
+  #diag-block{ grid-column: 1; order: 3; margin-top: 12px; }
 }

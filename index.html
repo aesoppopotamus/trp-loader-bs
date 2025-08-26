@@ -16,34 +16,37 @@
 <body>
   <!-- Loading Wrapper: centers content on the page -->
   <div id="loading-wrapper">
+  <div id="boot-seq" class="startseq startseq--visible" aria-hidden="true"></div>
+  <div class="holo-scanlines"></div>
   <!-- Top Right Container for Logo and Headers -->
   <div id="top-right">
-    <h1 class="scan-text">The Future War</h1>
-    <h2 class="scan-text">Colorado Springs</h2>
-    <h3 class="scan-text">Terminator Serious Roleplay</h3>
   </div>
 
   <!-- Assembly Feed Left Column -->
   <div class="assembly-feed-container-left">
-    <div class="assembly-feed-left" id="assembly-feed-left">
-      <!-- Left assembly code will be generated here -->
-    </div>
+    <!-- DOS / 386 boot screen -->
+  <div id="dos-screen" class="crt">
+  <div id="boot-feed" class="terminal"></div>
+  </div>
   </div>
 
-  <!-- Lore Feed Container (Right Column) -->
-  <div class="lore-feed-container">
-    <div class="lore-feed" id="lore-feed">
-    </div>
+  <!-- MAP (centeredcontent) -->
+<div id="map-block">
+
+  <svg id="map-svg" viewBox="0 0 1800 1170" preserveAspectRatio="xMidYMid meet">
+    <image id="map-image" href="img/washingtonmap2.png" x="0" y="0" width="1800" height="1170"
+           preserveAspectRatio="xMidYMid meet" />
+  </svg>
+<div id="tacmap-ticker" aria-live="polite"></div>
+
+</div>
+
+  <!-- New diagnostics block -->
+  <div id="diag-block">
+  <svg id="diag-pane"></svg>
   </div>
 
 
-  <!-- Bracket Container (with map and scanlines) -->
-  <div id="bracket-container" class="bracket-container" style="display:none;">
-    <div id="map-container" class="map-container">
-      <img src="img/washingtonmap2.png" class="map-image" alt="Map">
-    </div>
-    <div class="holo-scanlines"></div> <!-- Scanlines overlay -->
-  </div>
 
   <!-- Console Element (for terminal-style text) -->
   <div id="console">
@@ -60,15 +63,17 @@
   <div class="scanlines"></div>
     
   </div> <!-- End of loading-wrapper -->
-
-  <!-- Bootstrap JS and Custom JS -->
-  <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
-  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
-
+  
   <!-- Custom Scripts -->
-  <script src="js/config.js"></script> <!-- Config Values -->
-  <script src="js/loading.js"></script> <!-- Custom JavaScript -->
-  <script src="js/mapanim.js"></script> <!-- JS for map animation -->
+<script defer src="js/config.js"></script>
+<script defer src="js/loading.js"></script>
+<script defer src="js/startsequence.js"></script>
+<script defer src="js/tacmap.nodes.js"></script>
+<script defer src="js/tacmap.ticker.js"></script>
+<script defer src="js/diag.js"></script>
+<script defer src="js/dosBoot.js"></script>
+<script defer src="js/cursorTyper.js"></script>
+
 </body>
 
 </html>
