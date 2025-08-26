@@ -16,6 +16,8 @@
 <body>
   <!-- Loading Wrapper: centers content on the page -->
   <div id="loading-wrapper">
+  <div id="boot-seq" class="startseq startseq--visible" aria-hidden="true"></div>
+  <div class="holo-scanlines"></div>
   <!-- Top Right Container for Logo and Headers -->
   <div id="top-right">
   </div>
@@ -28,16 +30,20 @@
   </div>
   </div>
 
-<!-- centered content wrapper (replaces old .bracket-container) -->
-  <section id="centeredcontent">
-    <div id="boot-seq" class="startseq startseq--visible" aria-hidden="true"></div>
-    <div id="diag-root"></div>
-    <div class="holo-scanlines"></div>
-  </section>
+  <!-- MAP (centeredcontent) -->
+<div id="map-block">
+
+  <svg id="map-svg" viewBox="0 0 1800 1170" preserveAspectRatio="xMidYMid meet">
+    <image id="map-image" href="img/washingtonmap2.png" x="0" y="0" width="1800" height="1170"
+           preserveAspectRatio="xMidYMid meet" />
+  </svg>
+<div id="tacmap-ticker" aria-live="polite"></div>
+
+</div>
 
   <!-- New diagnostics block -->
   <div id="diag-block">
-  <svg id="diag-pane" viewBox="0 0 720 1000" preserveAspectRatio="xMidYMid meet"></svg>
+  <svg id="diag-pane"></svg>
   </div>
 
 
@@ -62,8 +68,9 @@
 <script defer src="js/config.js"></script>
 <script defer src="js/loading.js"></script>
 <script defer src="js/startsequence.js"></script>
+<script defer src="js/tacmap.nodes.js"></script>
+<script defer src="js/tacmap.ticker.js"></script>
 <script defer src="js/diag.js"></script>
-<script defer src="js/diag.nodes.js"></script>
 <script defer src="js/dosBoot.js"></script>
 <script defer src="js/cursorTyper.js"></script>
 

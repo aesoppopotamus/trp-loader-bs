@@ -12,13 +12,14 @@
   --dos-pad-x: 0.7vw;
   --dos-pad-y: 0.6vh;
 
-  --diag-w: 24vw;
+  --diag-w: 26vw;
   --diag-gap: 1.5vw;
-  --diag-enter-ms: 900ms;
   --diag-border-color: #ffffff;
   --diag-bg: rgba(0,0,0,0.45);
   --diag-border-radius: 12px;
   --diag-shadow: 0 0 1vh rgba(255,255,255,0.35);
+  --pane-h: clamp(420px, 58vh, 880px);
+  --diag-fs: clamp(14px, min(1.1vw, 1.6vh), 22px);
 }
 
 /* Body Background and General Styling */
@@ -55,15 +56,18 @@ body {
 /* Wrapper + HUD                                                              */
 /* ========================================================================== */
 
-#loading-wrapper {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  height: 100vh;
-  background-color: rgba(0, 0, 0, 0.8);
-  padding: 0 2vw;
-  position: relative;
-  z-index: 2;
+/* Main layout grid: [DOS feed] [MAP] [DIAG] */
+#loading-wrapper{
+  display: grid;
+  grid-template-columns: minmax(260px, var(--feed-w)) 1fr minmax(360px, var(--diag-w));
+  grid-auto-rows: 1fr;
+  align-items: center;             /* vertical centering of modules */
+  justify-items: stretch;
+  gap: var(--diag-gap);
+  min-height: 100vh;
+  padding: clamp(8px, 1.5vw, 20px);
+  position: relative;              /* for overlays like scanlines */
+  background-color: rgba(0,0,0,0.8);
 }
 
 /* Top Right Logo and Text (HUD) */
@@ -89,7 +93,7 @@ body {
 }
 
 h1.scan-text { font-size: clamp(1.6rem, 2.5vw, 3rem); letter-spacing: 0.12em; }
-h2.scan-text { font-size: clamp(1.2rem, 1.8vw, 2.2rem); color: #37ddfa; text-shadow: 0 0 5px #00ddff; }
+h2.scan-text { font-size: clamp(1.6rem, 2.5vw, 3rem); color: #37ddfa; text-shadow: 0 0 5px #00ddff; }
 h3.scan-text { font-size: clamp(1.0rem, 1.3vw, 1.6rem); color: #3ccde7; text-shadow: 0 0 5px #00ddff; }
 h4.scan-text { font-size: clamp(0.8rem, 1.0vw, 1.2rem); color: #3ccde7; text-shadow: 0 0 5px #00ddff; }
 
@@ -196,107 +200,137 @@ h4.scan-text { font-size: clamp(0.8rem, 1.0vw, 1.2rem); color: #3ccde7; text-sha
   height: 0;                             /* WebKit/Blink */
 }
 
-/* ================== T-800 DIAGNOSTICS CENTERPIECE ================== */
+/* ================== DIAGNOSTICS CENTERPIECE ================== */
 /* This block replaces the old map/bracket styles.                      */
 
-/* New center container */
-#centeredcontent{
-  position: absolute;
-  top: 50vh;
-  left: calc(1vw + var(--feed-w, 22vw) + 1.5vw);
-  right: .35vw;
-  transform: translateY(-50%);
-
-  /* size & look */
-  aspect-ratio: 1200 / 560;
-  height: 52vh;              /* tweak 44–56vh if desired */
-  min-height: 360px;
+/* MAP (center) */
+/* Center column: MAP — fixed ratio, centered */
+/* --- MAP stays unchanged, but ensure the host has a size --- */
+#map-block{
+  grid-column: 2;
+  justify-self: center;
+  height: var(--pane-h);
+  aspect-ratio: 1800 / 1170;
+  max-width: 100%;
   background: var(--diag-bg);
   border: 2px solid var(--diag-border-color);
   border-radius: var(--diag-border-radius);
   box-shadow: var(--diag-shadow);
   overflow: hidden;
-
-  display: grid;
-  place-items: stretch;
+  position: relative;
   z-index: 2;
 }
+#map-svg{ height:100%; width:100%; display:block; }
 
-/* SVG mount should fill the box */
-#centeredcontent #diag-root{ width:100%; height:100%; }
-#centeredcontent .diag-svg{ display:block; width:100%; height:100%; }
 
-/* --- Diagnostics pane: crisp mono + safe right gutter --- */
-#centeredcontent .diag-svg text{
+/* Default TACMAP node + ring appearance */
+#map-svg .trp-nodes circle {
+  color: #7ad3ff;                /* sets "currentColor" base */
+  fill: #7ad3ff;                 /* neon blue */
+  fill-opacity: 0.85;
+  stroke: #7ad3ff;               /* for rings */
+  stroke-opacity: 0.25;
+  filter: drop-shadow(0 0 4px #7ad3ff)
+          drop-shadow(0 0 8px #7ad3ff);
+}
+
+/* Stronger alert glows */
+#map-svg .trp-nodes circle.alert-yellow,
+#map-svg .trp-nodes circle.alert-yellow + .trp-node-ring {
+  filter: drop-shadow(0 0 6px #ffd166)
+          drop-shadow(0 0 14px #ffd166)
+          drop-shadow(0 0 28px #ffd166);
+}
+
+#map-svg .trp-nodes circle.alert-red,
+#map-svg .trp-nodes circle.alert-red + .trp-node-ring {
+  filter: drop-shadow(0 0 6px #ff5252)
+          drop-shadow(0 0 14px #ff5252)
+          drop-shadow(0 0 34px #ff0000);
+}
+
+/* Let alert rings be more visible while active */
+#map-svg .trp-nodes .trp-node-ring.alert-yellow,
+#map-svg .trp-nodes .trp-node-ring.alert-red {
+  stroke-opacity: 0.45 !important;
+  stroke-width: 1.6 !important;
+}
+
+/* Optional: glow for link lines */
+#map-svg .trp-links line {
+  stroke: #7ad3ff;
+  stroke-opacity: 0.35;
+  filter: drop-shadow(0 0 3px #7ad3ff);
+}
+
+/* TACMAP ticker (overlay at bottom of the map card) */
+#tacmap-ticker {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  padding: 0px 20px;
+  background: linear-gradient(180deg, rgba(8,16,24,0.0), rgba(8,16,24,0.55));
+  border-top: 1px solid rgba(122,211,255,0.25);
   font-family: "Perfect DOS VGA 437","Courier New", monospace;
-  font-size: 14px;             /* tweak freely (16–18 works well) */
-  letter-spacing: 0.01em;
-  text-shadow: none !important;
-  text-rendering: geometricPrecision;
-  -webkit-font-smoothing: antialiased;
-  paint-order: stroke fill;    /* reduces white fringe against glow */
-}
-
-/* Diagnostics: crisper SVG text + predictable rendering */
-.diag-svg {
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-}
-.diag-svg text {
-  paint-order: stroke; /* avoids halo on glow backgrounds */
-  stroke-width: 0;
-}
-
-#diag-root .trp-links line,
-#diag-root .trp-nodes circle {
-  shape-rendering: geometricPrecision;
-  vector-effect: non-scaling-stroke;
-}
-#diag-root .trp-links,
-#diag-root .trp-nodes {
-  color: var(--diag-accent, #7ad3ff);
+  font-size: 13px; line-height: 1.35;
+  color: #cfe7ff;
   pointer-events: none;
+  max-height: 30%;
+  overflow: hidden;
+}
+#tacmap-ticker .row {
+  display: flex;
+  gap: 8px;
+  white-space: nowrap;
+  filter: drop-shadow(0 0 2px rgba(122,211,255,0.6));
+  opacity: 0.95;
+  transform: translateY(0);
+  transition: opacity 400ms ease, transform 400ms ease;
+}
+#tacmap-ticker .row.fade {
+  opacity: 0; transform: translateY(8px);
 }
 
+#tacmap-ticker .ts   { opacity: 0.8; }
+#tacmap-ticker .tag  { color: #7ad3ff; }
+#tacmap-ticker .tag.yellow { color: #ffd166; } /* SURV/SCAN/OBS */
+#tacmap-ticker .tag.red    { color: #ff6b6b; } /* THREAT/OMEGA/LOCK */
+#tacmap-ticker .loc  { opacity: 0.85; }
+#tacmap-ticker .tag        { letter-spacing: 0.04em; }
+#tacmap-ticker .msg        { opacity: 0.95; }
 
-/* header keeps its glow; scale a touch on small widths */
-@media (max-width: 1400px){
-  #centeredcontent .diag-svg text[filter="url(#glow)"]{
-    font-size: 20px;
-    letter-spacing: 0.08em;
-  }
+/* --- DIAG: fill container + scale text --- */
+#diag-block{
+  /* switch to flex so the child can grow to full height reliably */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+
+  background: linear-gradient(180deg, rgba(10,20,28,0.35), rgba(10,20,28,0.15));
+  border: 2px solid var(--diag-border-color);
+  border-radius: var(--diag-border-radius);
+  box-shadow: var(--diag-shadow);
+  padding: clamp(8px, 1.2vw, 14px);
+  z-index: 2;
+  overflow: hidden;
 }
 
-/* Scanline overlay scoped to the new container */
- .holo-scanlines{
-  position: absolute; inset: 0;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(255,255,255,0.05) 0,
-    rgba(255,255,255,0.05) 2px,
-    transparent 3px,
-    transparent 3px
-  );
-  animation: scanline-animation 2s linear infinite;
-  opacity: .35;
-}
 
 /* ========================================================================== */
 /* Left "quadrant" container + DOS boot                                       */
 /* ========================================================================== */
 
-.assembly-feed-container-left {
-  position: absolute;
-  top: 1vh; left: 1vw;
-  width: var(--feed-w);
-  height: calc(100vh - 2vh);
+/* Left column: DOS feed */
+.assembly-feed-container-left{
+  position: relative; 
+  grid-column: 1;
+  align-self: stretch;             /* fill column height */
+  min-height: var(--pane-h);
   box-sizing: border-box;
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: rgba(0,0,0,0.6);
   border: 0.1vh solid #ffffff;
   overflow: hidden;
   z-index: 2;
-  box-shadow: 0 0 1vh rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 1vh rgba(255,255,255,0.5);
 }
 
 .assembly-feed-container-left::before {
@@ -351,6 +385,7 @@ h4.scan-text { font-size: clamp(0.8rem, 1.0vw, 1.2rem); color: #3ccde7; text-sha
 }
 @keyframes dos-scan { to { background-position: 0 100%; } }
 
+
 /* Terminal text area (CRISP, no glow, no fixed width/height) */
 .terminal {
   position: absolute;
@@ -364,113 +399,64 @@ h4.scan-text { font-size: clamp(0.8rem, 1.0vw, 1.2rem); color: #3ccde7; text-sha
   color: #e8e8e8;                         /* not pure white, less bloom */
   letter-spacing: 0;
   text-shadow: none !important;           /* kill glow */
-  -webkit-font-smoothing: none;
-  -moz-osx-font-smoothing: auto;
-  white-space: normal;                    /* single-line rows */
+  white-space: pre-wrap;                    /* single-line rows */
   overflow: hidden;                       /* no scrollbars */
 }
-/* make sure nothing inside re-adds glow or transform */
-.terminal * {
-  text-shadow: none !important;
-  text-transform: none !important;
-}
 
-/* Row/columns */
-.terminal .assembly-line {
-  display: flex-start;
+/* Each printed line: be flex, and allow wrap */
+.terminal .assembly-line{
+  display: flex;               /* was invalid: flex-start */
+  flex-wrap: wrap;             /* allow instructions to wrap to next line */
   align-items: baseline;
-  gap: 0.4ch;                   /* tight spacing */
-}
-.terminal .assembly-line > span:first-child {
-  flex: 0 0 auto;
-  min-width: 4.5ch;             /* room for 4–5 digits */
-  text-align: right;
-  padding-right: 0.4ch;
-  opacity: .85;
-}
-.terminal .assembly-line > span:nth-child(2) {
-  flex: 0 0 var(--addr-w);/* address column width; tweak with --addr-w */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  gap: 0.4ch;
   min-width: 0;
 }
-.terminal .assembly-line > span:nth-child(3) {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-}
-/* Indented code lines (one text span after number) */
-.terminal .assembly-line.indented > span:nth-child(2) {
-  flex: 1 1 auto !important;
-  min-width: 0;
-  padding-left: 1ch;
-}
+/* let children shrink/wrap */
+.terminal .assembly-line > *{ min-width: 0; }
 
 /* ========================================================================== */
 /* Console ticker                                         */
 /* ========================================================================== */
 
-/* Console: pinned to the bottom of the RIGHT region (i.e., to the right of the boot column) */
-#console {
-  position: absolute;
-  bottom: 6vh;
+/* Bottom-center HUD console (true center, compact, wraps lines) */
+#console{
+  position: fixed;
+  bottom: clamp(12px, 4vh, 40px);
 
-  /* reserve the left column + a comfy gap, and keep a 1vw margin on the right */
-  left: calc(1vw + var(--feed-w) + 2vw);
-  right: 25vw;
+  /* true centering without transforms */
+  left: 0;
+  right: 0;
+  margin-inline: auto;
 
-  /* sizing/looks */
+  /* compact, proportional width */
+  width: clamp(480px, 55vw, 900px);
   box-sizing: border-box;
+
+  /* wrap long lines cleanly */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-align: left;
+
+  /* styling */
   padding: 0.9vh 1.2vw;
-  background: rgba(0, 0, 0, 0.75);
-  border: 1px solid rgba(0, 255, 128, 0.35);
+  background: rgba(0,0,0,0.78);
+  border: 1px solid rgba(0,255,128,0.35);
   box-shadow:
-    0 0 1.2vh rgba(0, 255, 128, 0.25) inset,
-    0 0 1.2vh rgba(0, 0, 0, 0.6);
+    0 0 1.2vh rgba(0,255,128,0.25) inset,
+    0 0 1.2vh rgba(0,0,0,0.6);
   border-radius: 4px;
 
   font-family: 'Courier New', monospace;
+  font-size: clamp(12px, 1.5vw, 16px);
   color: #00ff66;
 
-  height: auto;
-  max-height: 3.2em;      /* ~two lines max for safety */
-  overflow: hidden;
-  z-index: 8;
+  z-index: 999;
+  pointer-events: none;
 }
-
-/* lay out prompt, text, cursor on one line */
-#console {
-  display: block;
-  text-align: left;   /* keeps the > and text aligned */
-  gap: 0.5ch;
-}
-
-#console-prompt {
-  flex: 0 0 auto;
-  margin-right: 0.25ch;    /* tiny breathing room after ">" */
-  color: #00ff66;
-}
-
-#console #console-text {
-  flex: 1 1 auto;          /* take the remaining width */
-  min-width: 0;            /* critical for ellipsis in flex */
-  max-width: none;
-  width: auto !important;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: clamp(12px, 0.95vw, 16px);
-  line-height: 1.1;
-  letter-spacing: 0.02em;
-  text-shadow: 0 0 4px rgba(0,255,128,0.5);
-}
+#console #cursor{ opacity: 0.9; }
 
 #cursor {
-  width: auto;
   margin-left: 0.25ch;
   font-weight: bold;
   color: #00ff00;
@@ -522,4 +508,14 @@ h4.scan-text { font-size: clamp(0.8rem, 1.0vw, 1.2rem); color: #3ccde7; text-sha
   0% { background-position: 0% 25%; background-size: 140%; }
   50% { background-position: 100% 25%; background-size: 160%; }
   100% { background-position: 0% 50%; background-size: 140%; }
+}
+
+@media (max-width: 1200px){
+  #loading-wrapper{
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+  .assembly-feed-container-left{ grid-column: 1; order: 1; min-height: auto; }
+  #map-block{ grid-column: 1; order: 2; width: 100%; }
+  #diag-block{ grid-column: 1; order: 3; margin-top: 12px; }
 }
