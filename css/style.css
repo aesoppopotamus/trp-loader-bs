@@ -25,7 +25,7 @@
 /* Body Background and General Styling */
 body {
   background: url('../img/background.jpg') no-repeat center center fixed;
-  background-size: cover;
+  background-size: cover;           /* scales to fill, keeps aspect ratio */
   animation: panZoomEffect 60s ease-in-out infinite alternate;
   color: #ff0000; /* Terminator red for text */
   font-family: 'Courier New', Courier, monospace;
@@ -33,6 +33,19 @@ body {
   margin: 0;
   overflow: hidden;
   opacity: 0.9;
+}
+
+.snow-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1;           /* above background, below UI */
+  pointer-events: none; /* don’t block clicks */
+}
+
+@keyframes panZoomEffect {
+  0%   { background-position: 45% 48%; }
+  50%  { background-position: 55% 52%; }
+  100% { background-position: 50% 50%; }
 }
 
 /* Import fonts */
@@ -68,6 +81,7 @@ body {
   padding: clamp(8px, 1.5vw, 20px);
   position: relative;              /* for overlays like scanlines */
   background-color: rgba(0,0,0,0.8);
+  z-index: 2;
 }
 
 /* Top Right Logo and Text (HUD) */
@@ -446,50 +460,74 @@ h4.scan-text { font-size: .75vw; color: #3ccde7; text-shadow: 0 0 5px #00ddff; }
 /* Console ticker                                         */
 /* ========================================================================== */
 
-/* Bottom-center HUD console (true center, compact, wraps lines) */
+/* Console: responsive, readable, no weird stretching */
 #console{
   position: fixed;
-  bottom: clamp(12px, 4vh, 40px);
+
+  /* keep it close to the bottom but not floating on short screens */
+  bottom: clamp(8px, 2.8vh, 28px);
 
   /* true centering without transforms */
-  left: 0;
-  right: 0;
-  margin-inline: auto;
+  left: 0; right: 0; margin-inline: auto;
 
-  /* compact, proportional width */
-  width: clamp(480px, 55vw, 900px);
+  /* limit by viewport *and* characters for readable line length */
+  width: min(92vw, 68ch);   /* ~68 monospace chars across */
+  max-width: 1000px;        /* don't get comically wide on ultrawide */
+  /* no forced min-width so it fits smaller viewports cleanly */
+
   box-sizing: border-box;
+  line-height: 1.35;
 
-  /* wrap long lines cleanly */
+  /* allow wrapping without overflow */
   white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
   text-align: left;
 
   /* styling */
-  padding: 0.9vh 1.2vw;
+  padding: clamp(6px, 0.9vh, 12px) clamp(10px, 1.2vw, 20px);
   background: rgba(0,0,0,0.78);
   border: 1px solid rgba(0,255,128,0.35);
   box-shadow:
     0 0 1.2vh rgba(0,255,128,0.25) inset,
     0 0 1.2vh rgba(0,0,0,0.6);
-  border-radius: 4px;
+  border-radius: 6px;
 
   font-family: 'Courier New', monospace;
-  font-size: clamp(12px, 1.5vw, 16px);
+  font-size: clamp(12px, 1.2vw, 16px); /* a bit gentler than 1.5vw */
   color: #00ff66;
 
   z-index: 25;
   pointer-events: none;
-}
-#console #cursor{ opacity: 0.9; }
 
+  /* optional: tiny glow for contrast over busy backgrounds */
+  text-shadow: 0 0 6px rgba(0,255,128,0.15);
+}
+
+/* cursor unchanged */
+#console #cursor{ opacity: 0.9; }
 #cursor {
   margin-left: 0.25ch;
   font-weight: bold;
   color: #00ff00;
   animation: blink 1s infinite;
 }
+
+/* Tighter layout on short viewports (e.g., 720px tall laptops) */
+@media (max-height: 760px){
+  #console{
+    bottom: 8px;
+    font-size: clamp(11px, 1vw, 15px);
+    padding: 6px 10px;
+    width: min(94vw, 64ch);
+  }
+}
+
+/* Let it breathe a bit more on huge/wide displays */
+@media (min-width: 1920px){
+  #console{ width: min(88vw, 72ch); }
+}
+
 
 
 /* ========================================================================== */
@@ -532,11 +570,6 @@ h4.scan-text { font-size: .75vw; color: #3ccde7; text-shadow: 0 0 5px #00ddff; }
 
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 @keyframes scanline-animation { 0%{background-position:0 0} 100%{background-position:0 100%} }
-@keyframes panZoomEffect {
-  0% { background-position: 0% 25%; background-size: 140%; }
-  50% { background-position: 100% 25%; background-size: 160%; }
-  100% { background-position: 0% 50%; background-size: 140%; }
-}
 
 @media (max-width: 1200px){
   #loading-wrapper{

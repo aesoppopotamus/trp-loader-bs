@@ -6,6 +6,11 @@ window.DOS = window.DOS || {};
 window.INIT = window.INIT || {};
 window.TACMAP = window.TACMAP || {};
 
+window.TRPLoaderConfig = {
+  enableSnow: true
+};
+
+
 window.motdArray = [
   "Welcome to Terminator Roleplay!",
   "Join the community at www.thefuturewar.net!",
@@ -17,8 +22,8 @@ window.motdArray = [
 window.UI.scanTextClass = "scan-text";
 window.UI.scanText = [
   { tag: "h1", text: "The Future War" },
-  { tag: "h2", text: "First Contact" },
-  { tag: "h4", text: "Terminator Serious Roleplay" },
+  { tag: "h2", text: "Frostbite" },
+  { tag: "h3", text: "Terminator Serious Roleplay" },
 ];
 
 // Which array to type and where to render it
